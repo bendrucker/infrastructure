@@ -1,8 +1,8 @@
 FROM hashicorp/terraform
 
 WORKDIR /scripts
-COPY *.sh .
-RUN /scripts/install.sh
+COPY scripts .
+RUN ./install.sh
 
 WORKDIR /terraform
 COPY . ./
