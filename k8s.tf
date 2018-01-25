@@ -1,4 +1,5 @@
 locals {
+  name = "k8s"
   hosted_zone = "bendrucker.io"
 }
 
@@ -16,10 +17,10 @@ module "kubernetes" {
   dns_zone = "${local.hosted_zone}"
   dns_zone_id = "${data.aws_route53_zone.internal.zone_id}"
 
-  cluster_name = "k8s"
+  cluster_name = "${local.name}"
   controller_count = 1
   worker_count = 1
   ssh_authorized_key = "${file("~/.ssh/id_rsa.pub")}"
 
-  asset_dir = "${var.output_directory}"
+  asset_dir = "${var.output_directory}/${local.name}"
 }
