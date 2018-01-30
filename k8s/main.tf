@@ -1,26 +1,15 @@
-locals {
-  name = "k8s"
-  hosted_zone = "bendrucker.io"
+data "archive_file" "resources" {
+  type = "zip"
+  source_dir = "${path.module}/resources/"
+  output_path = "/tmp/${md5(path.module)}"
 }
 
-data "aws_route53_zone" "internal" {
-  name = "${local.hosted_zone}"
-}
-
-module "kubernetes" {
-  source = "git::https://github.com/poseidon/typhoon//aws/container-linux/kubernetes"
-
-  providers = {
-    aws = "aws.default"
+resource "null_resource" "apply-resources" {
+  triggers {
+    resources_sha = "${data.archive_file.resources.output_sha}"
   }
 
-  dns_zone = "${local.hosted_zone}"
-  dns_zone_id = "${data.aws_route53_zone.internal.zone_id}"
-
-  cluster_name = "${local.name}"
-  controller_count = 1
-  worker_count = 1
-  ssh_authorized_key = "${file("~/.ssh/id_rsa.pub")}"
-
-  asset_dir = "${var.output_directory}/${local.name}"
+  provisioner "local-exec" {
+    command = "cd '${path.module}' && KUBECONFIG='${var.kubeconfig}' ${path.module}/apply.sh"
+  }
 }

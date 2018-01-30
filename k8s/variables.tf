@@ -1,4 +1,4 @@
-variable "output_directory" {
+variable "kubeconfig" {
   type = "string"
-  description = "A directory where output files will be stored"
+  description = "The path to the kubeconfig file"
 }
