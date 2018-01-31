@@ -24,5 +24,16 @@ downlod_provider() {
 PROVIDER_CT_VERSION=${PROVIDER_CT_VERSION:-0.2.0}
 downlod_provider "https://github.com/coreos/terraform-provider-ct/releases/download/v${PROVIDER_CT_VERSION}/terraform-provider-ct-v${PROVIDER_CT_VERSION}-linux-amd64.tar.gz"
 
-PROVIDER_HELM_VERSION=${PROVIDER_CT_VERSION:-0.4.0}
+PROVIDER_HELM_VERSION=${PROVIDER_HELM_VERSION:-0.4.0}
 downlod_provider "https://github.com/mcuadros/terraform-provider-helm/releases/download/v${PROVIDER_HELM_VERSION}/terraform-provider-helm_v${PROVIDER_HELM_VERSION}_linux_amd64.tar.gz"
+
+HELM_BIN_VERSION=${HELM_BIN_VERSION:-2.8.0}
+HELM_BIN_PATH="/usr/local/bin/helm"
+curl \
+  --silent \
+  "https://kubernetes-helm.storage.googleapis.com/helm-v${HELM_BIN_VERSION}-linux-amd64.tar.gz" \
+  | tar xzf - -C /tmp --strip 1
+mv /tmp/helm "$HELM_BIN_PATH"
+chmod +x "$HELM_BIN_PATH"
+
+helm init --client-only
