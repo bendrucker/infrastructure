@@ -12,3 +12,13 @@ resource "helm_release" "dashboard" {
     value = "true"
   }
 }
+
+resource "helm_release" "prometheus" {
+  name = "prometheus"
+  chart = "stable/prometheus"
+
+  set {
+    name = "rbac.create"
+    value = "true"
+  }
+}
