@@ -1,4 +1,8 @@
 provider "cloudflare" {
-  email = "bvdrucker@gmail.com"
+  email = local.email
   # assume $CLOUDFLARE_TOKEN is set
+}
+
+provider "aws" {
+  region = "us-east-1"
 }
