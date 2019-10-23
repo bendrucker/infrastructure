@@ -22,3 +22,13 @@ resource "cloudflare_record" "github" {
   ttl     = "1"
   proxied = true
 }
+
+resource "cloudflare_record" "txt" {
+  domain = local.domain
+  name   = local.domain
+  type   = "TXT"
+  value = join("\n", [
+    "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
+  ])
+  ttl = "1"
+}

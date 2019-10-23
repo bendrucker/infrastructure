@@ -1,8 +1,9 @@
 provider "cloudflare" {
+  version = "~> 1.0"
   email = local.email
-  # assume $CLOUDFLARE_TOKEN is set
 }
 
 provider "aws" {
+  version = "~> 2.0"
   region = "us-east-1"
 }
