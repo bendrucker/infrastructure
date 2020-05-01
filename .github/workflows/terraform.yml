@@ -37,6 +37,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.github_token }}
           COMMIT_MSG: terraform fmt
         run: |
+          set -x
+          
           git config user.email "terraform@github.com"
           git config user.name "Terraform"
 
