@@ -1,6 +1,6 @@
-resource "null_resource" "n" { 
+resource "null_resource" "n" {
   triggers = {
     foober = ""
-    bar = ""
+    bar    = ""
   }
 }
