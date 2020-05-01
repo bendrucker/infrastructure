@@ -5,7 +5,7 @@ jobs:
   tflint:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout'
+      - name: "Checkout"
         uses: actions/checkout@master
       - name: Install Terraform
         run: |
@@ -21,13 +21,13 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout'
+      - name: "Checkout"
         uses: actions/checkout@master
       - name: terraform fmt
         uses: hashicorp/terraform-github-actions@master
         with:
-          tf_actions_version: 'latest'
-          tf_actions_subcommand: 'fmt'
+          tf_actions_version: "latest"
+          tf_actions_subcommand: "fmt"
           tf_actions_comment: false
           tf_actions_fmt_write: true
         env:
