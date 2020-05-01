@@ -1,8 +1,6 @@
 name: Terraform
 on:
   - pull_request
-env:
-  tf_version: 'latest'
 jobs:
   tflint:
     runs-on: ubuntu-latest
@@ -20,3 +18,28 @@ jobs:
         uses: reviewdog/action-tflint@master
         with:
           github_token: ${{ secrets.github_token }}
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@master
+      - name: terraform fmt
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: 'latest'
+          tf_actions_subcommand: 'fmt'
+          tf_actions_comment: false
+          tf_actions_fmt_write: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit to repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.github_token }}
+          COMMIT_MSG: terraform fmt
+        run: |
+          git config user.email "terraform@github.com"
+          git config user.name "Terraform"
+
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          git add .
+          git diff --quiet && git diff --staged --quiet || (git commit -m "${COMMIT_MSG}"; git push)
