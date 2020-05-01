@@ -32,10 +32,10 @@ jobs:
           tf_actions_fmt_write: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-     - uses: stefanzweifel/git-auto-commit-action@v4.1.6
-       with:
-         commit_message: terraform fmt
-         branch: ${{ github.head_ref }}
-        commit_user_name: terraformbot
-        commit_user_email: terraform@github.com
-        commit_author: Terraform <terraform@github.com>
+      - uses: stefanzweifel/git-auto-commit-action@v4.1.6
+        with:
+          commit_message: terraform fmt
+          branch: ${{ github.head_ref }}
+          commit_user_name: terraformbot
+          commit_user_email: terraform@github.com
+          commit_author: Terraform <terraform@github.com>
