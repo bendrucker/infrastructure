@@ -16,6 +16,5 @@ jobs:
           tf_actions_version: ${{ env.tf_version }}
           tf_actions_subcommand: 'fmt'
           tf_actions_fmt_write: true
-          tf_actions_comment: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
