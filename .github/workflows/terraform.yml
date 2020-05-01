@@ -4,8 +4,8 @@ on:
 env:
   tf_version: 'latest'
 jobs:
-  terraform:
-    name: 'Terraform'
+  format:
+    name: 'Format'
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout'
