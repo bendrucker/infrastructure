@@ -4,17 +4,19 @@ on:
 env:
   tf_version: 'latest'
 jobs:
-  format:
-    name: 'Format'
+  tflint:
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout'
         uses: actions/checkout@master
-      - name: 'Terraform Format'
-        uses: hashicorp/terraform-github-actions@master
+      - name: Install Terraform
+        run: |
+          curl -LO https://raw.github.com/robertpeteuil/terraform-installer/master/terraform-install.sh
+          chmod +x terraform-install.sh
+          ./terraform-install.sh -a
+      - name: terraform init
+        run: terraform init
+      - name: tflint
+        uses: reviewdog/action-tflint@master
         with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'fmt'
-          tf_actions_fmt_write: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.github_token }}
