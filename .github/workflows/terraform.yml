@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: "Checkout"
         uses: actions/checkout@master
+        with:
+          ref: ${{ github.head_ref }}
       - name: terraform fmt
         uses: hashicorp/terraform-github-actions@master
         with:
