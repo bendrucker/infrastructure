@@ -1,21 +1,43 @@
 name: Terraform
 on:
   - pull_request
-env:
-  tf_version: 'latest'
 jobs:
-  format:
-    name: 'Format'
+  tflint:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout'
+      - name: "Checkout"
         uses: actions/checkout@master
-      - name: 'Terraform Format'
+      - name: Install Terraform
+        run: |
+          curl -LO https://raw.github.com/robertpeteuil/terraform-installer/master/terraform-install.sh
+          chmod +x terraform-install.sh
+          ./terraform-install.sh -a
+      - name: terraform init
+        run: terraform init -backend=false
+      - name: tflint
+        uses: reviewdog/action-tflint@master
+        with:
+          github_token: ${{ secrets.github_token }}
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@master
+        with:
+          ref: ${{ github.head_ref }}
+      - name: terraform fmt
         uses: hashicorp/terraform-github-actions@master
         with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'fmt'
+          tf_actions_version: "latest"
+          tf_actions_subcommand: "fmt"
+          tf_actions_comment: false
           tf_actions_fmt_write: true
-          tf_actions_comment: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: stefanzweifel/git-auto-commit-action@v4.1.6
+        with:
+          commit_message: terraform fmt
+          branch: ${{ github.head_ref }}
+          commit_user_name: terraformbot
+          commit_user_email: terraform@github.com
+          commit_author: Terraform <terraform@github.com>
