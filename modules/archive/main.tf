@@ -4,6 +4,7 @@ resource "aws_s3_bucket" "bucket" {
   lifecycle_rule {
     id      = "glacier-archive"
     enabled = true
+    prefix  = "Archive"
 
     transition {
       days          = 1
