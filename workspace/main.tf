@@ -12,7 +12,7 @@ resource "tfe_workspace" "this" {
     github_app_installation_id = "ghain-fMk4yTVFAVZbgq5H"
   }
 
-  terraform_version = "0.13.7"
+  terraform_version = "latest"
 }
 
 import {
