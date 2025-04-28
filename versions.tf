@@ -6,8 +6,8 @@ terraform {
     }
 
     cloudflare = {
-      source  = "gaima8/cloudflare"
-      version = "~> 1.0.0"
+      source  = "cloudflare/cloudflare"
+      version = "~> 2.0"
     }
   }
 
