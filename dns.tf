@@ -4,10 +4,10 @@ resource "cloudflare_zone" "vanity" {
 
 resource "cloudflare_record" "wwwizer" {
   zone_id = cloudflare_zone.vanity.id
-  name   = cloudflare_zone.vanity.zone
-  type   = "A"
-  value  = "174.129.25.170"
-  ttl    = "1"
+  name    = cloudflare_zone.vanity.zone
+  type    = "A"
+  value   = "174.129.25.170"
+  ttl     = "1"
 }
 
 resource "cloudflare_record" "github" {
@@ -21,8 +21,8 @@ resource "cloudflare_record" "github" {
 
 resource "cloudflare_record" "txt" {
   zone_id = cloudflare_zone.vanity.id
-  name   = cloudflare_zone.vanity.zone
-  type   = "TXT"
+  name    = cloudflare_zone.vanity.zone
+  type    = "TXT"
   value = join("\n", [
     "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
   ])
