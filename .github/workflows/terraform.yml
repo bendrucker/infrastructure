@@ -34,7 +34,7 @@ jobs:
           tf_actions_fmt_write: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: stefanzweifel/git-auto-commit-action@v4.1.6
+      - uses: stefanzweifel/git-auto-commit-action@v5.2.0
         with:
           commit_message: terraform fmt
           branch: ${{ github.head_ref }}
