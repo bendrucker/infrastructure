@@ -16,7 +16,7 @@ resource "cloudflare_dns_record" "wwwizer" {
 
 resource "cloudflare_dns_record" "github" {
   zone_id = cloudflare_zone.vanity.id
-  name    = "www"
+  name    = "www.${cloudflare_zone.vanity.name}"
   type    = "CNAME"
   content = "bendrucker.github.io"
   ttl     = 1
