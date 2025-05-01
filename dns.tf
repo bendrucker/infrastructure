@@ -3,7 +3,7 @@ resource "cloudflare_zone" "vanity" {
     id = var.cloudflare_account_id
   }
 
-  name       = "bendrucker.me"
+  name = "bendrucker.me"
 }
 
 resource "cloudflare_dns_record" "wwwizer" {
