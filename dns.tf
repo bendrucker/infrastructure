@@ -1,13 +1,16 @@
 resource "cloudflare_zone" "vanity" {
-  account_id = var.cloudflare_account_id
-  zone       = "bendrucker.me"
+  account = {
+    id = var.cloudflare_account_id
+  }
+
+  name       = "bendrucker.me"
 }
 
 resource "cloudflare_dns_record" "wwwizer" {
   zone_id = cloudflare_zone.vanity.id
-  name    = cloudflare_zone.vanity.zone
+  name    = cloudflare_zone.vanity.name
   type    = "A"
-  value   = "174.129.25.170"
+  content = "174.129.25.170"
   ttl     = 1
 }
 
@@ -15,7 +18,7 @@ resource "cloudflare_dns_record" "github" {
   zone_id = cloudflare_zone.vanity.id
   name    = "www"
   type    = "CNAME"
-  value   = "bendrucker.github.io"
+  content = "bendrucker.github.io"
   ttl     = 1
   proxied = true
 }
@@ -24,7 +27,7 @@ resource "cloudflare_dns_record" "txt" {
   zone_id = cloudflare_zone.vanity.id
   name    = cloudflare_zone.vanity.zone
   type    = "TXT"
-  value   = "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
+  content = "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
   ttl     = 1
 }
 
