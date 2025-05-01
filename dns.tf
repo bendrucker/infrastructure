@@ -25,7 +25,7 @@ resource "cloudflare_dns_record" "github" {
 
 resource "cloudflare_dns_record" "txt" {
   zone_id = cloudflare_zone.vanity.id
-  name    = cloudflare_zone.vanity.zone
+  name    = cloudflare_zone.vanity.name
   type    = "TXT"
   content = "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
   ttl     = 1
