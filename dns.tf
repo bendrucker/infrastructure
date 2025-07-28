@@ -18,7 +18,7 @@ resource "cloudflare_dns_record" "apex" {
 resource "cloudflare_page_rule" "apex_to_www" {
   zone_id = cloudflare_zone.vanity.id
   target  = "bendrucker.me/*"
-  
+
   actions = {
     forwarding_url = {
       url         = "https://www.bendrucker.me/$1"
