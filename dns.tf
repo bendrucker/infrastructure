@@ -17,11 +17,11 @@ resource "cloudflare_dns_record" "apex" {
 
 resource "cloudflare_page_rule" "apex_to_www" {
   zone_id = cloudflare_zone.vanity.id
-  target  = "bendrucker.me/*"
+  target  = "${cloudflare_zone.vanity.name}/*"
 
   actions = {
     forwarding_url = {
-      url         = "https://www.bendrucker.me/$1"
+      url         = "https://${cloudflare_dns_record.github.name}/$1"
       status_code = 301
     }
   }
