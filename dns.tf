@@ -19,7 +19,7 @@ resource "cloudflare_ruleset" "redirects" {
   zone_id     = cloudflare_zone.vanity.id
   name        = "redirects"
   description = "Single redirects ruleset"
-  kind        = "zone"
+  kind        = "custom"
   phase       = "http_request_dynamic_redirect"
 
   rules = [
