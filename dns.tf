@@ -6,12 +6,25 @@ resource "cloudflare_zone" "vanity" {
   name = "bendrucker.me"
 }
 
-resource "cloudflare_dns_record" "wwwizer" {
+resource "cloudflare_dns_record" "apex" {
   zone_id = cloudflare_zone.vanity.id
   name    = cloudflare_zone.vanity.name
   type    = "A"
-  content = "174.129.25.170"
+  content = "192.0.2.1" # RFC 5737 TEST-NET-1 placeholder IP, actual traffic handled by Cloudflare proxy
   ttl     = 1
+  proxied = true
+}
+
+resource "cloudflare_page_rule" "apex_to_www" {
+  zone_id = cloudflare_zone.vanity.id
+  target  = "${cloudflare_zone.vanity.name}/*"
+
+  actions = {
+    forwarding_url = {
+      url         = "https://${cloudflare_dns_record.github.name}/$1"
+      status_code = 301
+    }
+  }
 }
 
 resource "cloudflare_dns_record" "github" {
@@ -29,35 +42,6 @@ resource "cloudflare_dns_record" "txt" {
   type    = "TXT"
   content = "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
   ttl     = 1
-}
-
-removed {
-  from = cloudflare_record.wwwizer
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = cloudflare_record.github
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = cloudflare_record.txt
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-import {
-  to = cloudflare_dns_record.wwwizer
-  id = "c783f775892feb7781197c65222d9612/a132e35e44ae39deabc7905eb9778248"
 }
 
 import {
