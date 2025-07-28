@@ -14,11 +14,15 @@ resource "cloudflare_dns_record" "wwwizer" {
   ttl     = 1
 }
 
+data "cloudflare_workers_script" "bendrucker_me" {
+  name = "bendrucker-me"
+}
+
 resource "cloudflare_dns_record" "github" {
   zone_id = cloudflare_zone.vanity.id
   name    = "www.${cloudflare_zone.vanity.name}"
   type    = "CNAME"
-  content = "bendrucker.github.io"
+  content = data.cloudflare_workers_script.bendrucker_me.subdomain
   ttl     = 1
   proxied = true
 }
