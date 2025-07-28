@@ -15,7 +15,7 @@ resource "cloudflare_dns_record" "apex" {
   proxied = true
 }
 
-resource "cloudflare_ruleset" "apex_www" {
+resource "cloudflare_ruleset" "redirects" {
   zone_id     = cloudflare_zone.vanity.id
   name        = "redirects"
   description = "Single redirects ruleset"
@@ -34,7 +34,7 @@ resource "cloudflare_ruleset" "apex_www" {
           target_url = {
             expression = "wildcard_replace(http.request.full_uri, r\"https://${cloudflare_zone.vanity.name}/*\", r\"https://${cloudflare_dns_record.github.name}/$${1}\")"
           }
-          preserve_query_string = false
+          preserve_query_string = true
         }
       }
     }
