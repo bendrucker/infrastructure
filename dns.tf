@@ -15,7 +15,8 @@ resource "cloudflare_dns_record" "wwwizer" {
 }
 
 data "cloudflare_workers_script" "bendrucker_me" {
-  name = "bendrucker-me"
+  account_id  = var.cloudflare_account_id
+  script_name = "bendrucker-me"
 }
 
 resource "cloudflare_dns_record" "github" {
