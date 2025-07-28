@@ -15,7 +15,7 @@ resource "cloudflare_dns_record" "apex" {
   proxied = true
 }
 
-resource "cloudflare_ruleset" "single_redirects" {
+resource "cloudflare_ruleset" "apex_www" {
   zone_id     = cloudflare_zone.vanity.id
   name        = "redirects"
   description = "Single redirects ruleset"
@@ -26,15 +26,15 @@ resource "cloudflare_ruleset" "single_redirects" {
     {
       ref         = "apex_to_www"
       description = "Redirect apex domain to www"
-      expression  = "(http.host eq \"${cloudflare_zone.vanity.name}\")"
+      expression  = "(http.request.full_uri wildcard r\"https://${cloudflare_zone.vanity.name}/*\")"
       action      = "redirect"
       action_parameters = {
         from_value = {
           status_code = 301
           target_url = {
-            value = "https://${cloudflare_dns_record.github.name}"
+            expression = "wildcard_replace(http.request.full_uri, r\"https://${cloudflare_zone.vanity.name}/*\", r\"https://${cloudflare_dns_record.github.name}/$${1}\")"
           }
-          preserve_query_string = true
+          preserve_query_string = false
         }
       }
     }
