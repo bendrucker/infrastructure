@@ -32,7 +32,7 @@ resource "cloudflare_ruleset" "redirects" {
         from_value = {
           status_code = 301
           target_url = {
-            expression = "wildcard_replace(http.request.full_uri, r\"https://${cloudflare_zone.vanity.name}/*\", r\"https://${cloudflare_dns_record.github.name}/$${1}\")"
+            expression = "wildcard_replace(http.request.full_uri, r\"https://${cloudflare_zone.vanity.name}/*\", r\"https://www.${cloudflare_zone.vanity.name}/$${1}\")"
           }
           preserve_query_string = true
         }
