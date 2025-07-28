@@ -17,9 +17,9 @@ resource "cloudflare_dns_record" "apex" {
 
 resource "cloudflare_ruleset" "redirects" {
   zone_id     = cloudflare_zone.vanity.id
-  name        = "redirects"
-  description = "Single redirects ruleset"
-  kind        = "custom"
+  name        = "default"
+  description = ""
+  kind        = "zone"
   phase       = "http_request_dynamic_redirect"
 
   rules = [
@@ -48,4 +48,9 @@ resource "cloudflare_dns_record" "txt" {
   type    = "TXT"
   content = "keybase-site-verification=8ic85gbwQMRpqKksDrw_hQdsvg9WEVvX2UBvEiPHhwk"
   ttl     = 1
+}
+
+import {
+  to = cloudflare_ruleset.redirects
+  id = "zones/c783f775892feb7781197c65222d9612/90ba3ffb134642349ffbef9787f23834"
 }
