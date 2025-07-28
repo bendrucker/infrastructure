@@ -15,16 +15,30 @@ resource "cloudflare_dns_record" "apex" {
   proxied = true
 }
 
-resource "cloudflare_page_rule" "apex_to_www" {
-  zone_id = cloudflare_zone.vanity.id
-  target  = "${cloudflare_zone.vanity.name}/*"
+resource "cloudflare_ruleset" "single_redirects" {
+  zone_id     = cloudflare_zone.vanity.id
+  name        = "redirects"
+  description = "Single redirects ruleset"
+  kind        = "zone"
+  phase       = "http_request_dynamic_redirect"
 
-  actions = {
-    forwarding_url = {
-      url         = "https://${cloudflare_dns_record.github.name}/$1"
-      status_code = 301
+  rules = [
+    {
+      ref         = "apex_to_www"
+      description = "Redirect apex domain to www"
+      expression  = "(http.host eq \"${cloudflare_zone.vanity.name}\")"
+      action      = "redirect"
+      action_parameters = {
+        from_value = {
+          status_code = 301
+          target_url = {
+            value = "https://${cloudflare_dns_record.github.name}"
+          }
+          preserve_query_string = true
+        }
+      }
     }
-  }
+  ]
 }
 
 resource "cloudflare_dns_record" "github" {
