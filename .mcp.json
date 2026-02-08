@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "terraform": {
+      "command": "go",
+      "args": ["tool", "terraform-mcp-server", "stdio", "--toolsets=registry"]
+    },
+    "cloudflare-docs": {
+      "type": "sse",
+      "url": "https://docs.mcp.cloudflare.com/sse"
+    }
+  }
+}

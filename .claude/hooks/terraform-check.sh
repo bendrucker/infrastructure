@@ -1,0 +1,33 @@
+#!/bin/bash
+input=$(cat)
+cwd=$(echo "$input" | jq -r '.cwd')
+failed=0
+
+if ! command -v terraform &>/dev/null; then
+  exit 0
+fi
+
+terraform -chdir="$cwd" fmt -recursive >/dev/null 2>&1
+if ! terraform -chdir="$cwd" fmt -recursive -check >/dev/null 2>&1; then
+  echo "terraform fmt failed to resolve formatting issues"
+  failed=1
+fi
+
+for root in "$cwd" "$cwd/workspace"; do
+  if [ ! -d "$root/.terraform" ]; then
+    continue
+  fi
+
+  if ! terraform -chdir="$root" init -backend=false >/dev/null 2>&1; then
+    continue
+  fi
+
+  output=$(terraform -chdir="$root" validate 2>&1)
+  if [ $? -ne 0 ]; then
+    echo "terraform validate failed in $root:"
+    echo "$output"
+    failed=1
+  fi
+done
+
+exit $failed
