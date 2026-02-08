@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(terraform:*)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "WebFetch(domain:registry.terraform.io)",
+      "mcp__cloudflare-docs__search_cloudflare_documentation"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/terraform-fmt"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/terraform-check"
+          }
+        ]
+      }
+    ]
+  }
+}
