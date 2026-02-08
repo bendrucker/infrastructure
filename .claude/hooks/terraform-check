@@ -14,7 +14,11 @@ if ! terraform -chdir="$cwd" fmt -recursive -check >/dev/null 2>&1; then
 fi
 
 for root in "$cwd" "$cwd/workspace"; do
-  if [ ! -d "$root/.terraform/providers" ]; then
+  if [ ! -d "$root/.terraform" ]; then
+    continue
+  fi
+
+  if ! terraform -chdir="$root" init -backend=false >/dev/null 2>&1; then
     continue
   fi
 
