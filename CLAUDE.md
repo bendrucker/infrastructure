@@ -33,7 +33,7 @@ GitHub Actions on pull requests:
 - `tflint` via reviewdog
 - `terraform fmt` with auto-commit if formatting changes are needed
 
-Terraform Cloud runs plan on PR and apply on merge to `master`.
+Terraform Cloud runs plan on PR and apply on merge to `main`. To monitor runs after merge, use the TFC API via `curl` with `$TFE_TOKEN` (set via `terraform login`). Fetch apply details from `/api/v2/applies/{id}` to get the `log-read-url`, then fetch logs from that URL.
 
 ## Conventions
 
