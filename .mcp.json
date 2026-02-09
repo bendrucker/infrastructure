@@ -2,7 +2,7 @@
   "mcpServers": {
     "terraform": {
       "command": "go",
-      "args": ["tool", "terraform-mcp-server", "stdio", "--toolsets=registry"]
+      "args": ["tool", "terraform-mcp-server", "stdio", "--toolsets=registry,terraform"]
     },
     "cloudflare-docs": {
       "type": "sse",
