@@ -37,28 +37,7 @@ resource "cloudflare_ruleset" "redirects" {
           preserve_query_string = true
         }
       }
-    }
-  ]
-}
-
-
-resource "cloudflare_dns_record" "things" {
-  zone_id = cloudflare_zone.vanity.id
-  name    = "things.${cloudflare_zone.vanity.name}"
-  type    = "A"
-  content = "192.0.2.1"
-  ttl     = 1
-  proxied = true
-}
-
-resource "cloudflare_ruleset" "things" {
-  zone_id     = cloudflare_zone.vanity.id
-  name        = "things"
-  description = ""
-  kind        = "zone"
-  phase       = "http_request_dynamic_redirect"
-
-  rules = [
+    },
     {
       ref         = "things_to_app"
       description = "Redirect things subdomain to Things app URL scheme"
@@ -75,6 +54,16 @@ resource "cloudflare_ruleset" "things" {
       }
     }
   ]
+}
+
+
+resource "cloudflare_dns_record" "things" {
+  zone_id = cloudflare_zone.vanity.id
+  name    = "things.${cloudflare_zone.vanity.name}"
+  type    = "A"
+  content = "192.0.2.1"
+  ttl     = 1
+  proxied = true
 }
 
 resource "cloudflare_dns_record" "txt" {
