@@ -38,24 +38,8 @@ resource "cloudflare_ruleset" "redirects" {
         }
       }
     },
-    {
-      ref         = "things_to_app"
-      description = "Redirect things subdomain to Things app URL scheme"
-      expression  = "(http.host eq \"${cloudflare_dns_record.things.name}\")"
-      action      = "redirect"
-      action_parameters = {
-        from_value = {
-          status_code = 302
-          target_url = {
-            expression = "concat(\"things://\", http.request.uri)"
-          }
-          preserve_query_string = false
-        }
-      }
-    }
   ]
 }
-
 
 resource "cloudflare_dns_record" "things" {
   zone_id = cloudflare_zone.vanity.id
