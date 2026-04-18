@@ -1,8 +1,9 @@
 resource "cloudflare_workers_script" "things_redirect" {
-  account_id  = var.cloudflare_account_id
-  script_name = "things-redirect"
-  main_module = "worker.js"
-  content     = file("workers/things-redirect/worker.js")
+  account_id         = var.cloudflare_account_id
+  script_name        = "things-redirect"
+  main_module        = "worker.js"
+  content            = file("workers/things-redirect/worker.js")
+  compatibility_date = "2026-03-06"
 
   bindings = [{
     name = "HTML"
