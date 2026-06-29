@@ -41,8 +41,6 @@ jobs:
               await new Promise((resolve) => setTimeout(resolve, intervalMs))
             }
 
-            // The check is "success" even when the plan would change resources,
-            // so a clean plan also requires the "no changes" description.
             const clean = plan.state === 'success'
               && plan.description.trim() === 'Terraform plan has no changes'
             core.info(`Plan finished: state="${plan.state}" description="${plan.description}"`)
