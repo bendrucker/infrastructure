@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Wait for the Terraform Cloud plan
         id: plan
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const checkName = 'Terraform Cloud/bendrucker/infrastructure'
