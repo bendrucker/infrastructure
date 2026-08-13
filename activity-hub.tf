@@ -84,6 +84,68 @@ resource "cloudflare_zero_trust_access_application" "hub_auth" {
   ]
 }
 
+# Cloudflare bindings do not cross into a container, so the activity-hub decode
+# container reaches R2 over the S3 API instead. An R2 token carries one
+# permission level across every bucket it covers, which is why reading raw and
+# writing lake are two tokens rather than one.
+
+data "cloudflare_account_api_token_permission_groups_list" "account" {
+  account_id = var.cloudflare_account_id
+}
+
+locals {
+  # one() fails the apply on an ambiguous match instead of picking a group at
+  # random, which would mint a token with the wrong permission.
+  r2_bucket_read = one([
+    for group in data.cloudflare_account_api_token_permission_groups_list.account.result :
+    group.id if group.name == "Workers R2 Storage Bucket Item Read"
+  ])
+
+  r2_bucket_write = one([
+    for group in data.cloudflare_account_api_token_permission_groups_list.account.result :
+    group.id if group.name == "Workers R2 Storage Bucket Item Write"
+  ])
+
+  # Buckets created outside a jurisdiction take `default` in the resource key.
+  r2_bucket_resource_prefix = "com.cloudflare.edge.r2.bucket.${var.cloudflare_account_id}_default_"
+}
+
+resource "cloudflare_account_token" "hub_r2_raw" {
+  account_id = var.cloudflare_account_id
+  name       = "activity-hub raw read"
+  expires_on = "2027-08-12T00:00:00Z"
+
+  policies = [{
+    effect = "allow"
+
+    permission_groups = [{
+      id = local.r2_bucket_read
+    }]
+
+    resources = jsonencode({
+      "${local.r2_bucket_resource_prefix}activity-hub-raw" = "*"
+    })
+  }]
+}
+
+resource "cloudflare_account_token" "hub_r2_lake" {
+  account_id = var.cloudflare_account_id
+  name       = "activity-hub lake write"
+  expires_on = "2027-08-12T00:00:00Z"
+
+  policies = [{
+    effect = "allow"
+
+    permission_groups = [{
+      id = local.r2_bucket_write
+    }]
+
+    resources = jsonencode({
+      "${local.r2_bucket_resource_prefix}activity-hub-lake" = "*"
+    })
+  }]
+}
+
 output "activity_hub_access_client_id" {
   description = "CF-Access-Client-Id header value for activity-hub scripts"
   value       = cloudflare_zero_trust_access_service_token.hub.client_id
@@ -92,5 +154,30 @@ output "activity_hub_access_client_id" {
 output "activity_hub_access_client_secret" {
   description = "CF-Access-Client-Secret header value for activity-hub scripts"
   value       = cloudflare_zero_trust_access_service_token.hub.client_secret
+  sensitive   = true
+}
+
+# S3 reads the token id as the access key id and the SHA-256 of the token value
+# as the secret access key. The raw token value is not the secret.
+
+output "activity_hub_r2_raw_access_key_id" {
+  description = "S3 access key id for reading activity-hub-raw"
+  value       = cloudflare_account_token.hub_r2_raw.id
+}
+
+output "activity_hub_r2_raw_secret_access_key" {
+  description = "S3 secret access key for reading activity-hub-raw"
+  value       = sha256(cloudflare_account_token.hub_r2_raw.value)
+  sensitive   = true
+}
+
+output "activity_hub_r2_lake_access_key_id" {
+  description = "S3 access key id for writing activity-hub-lake"
+  value       = cloudflare_account_token.hub_r2_lake.id
+}
+
+output "activity_hub_r2_lake_secret_access_key" {
+  description = "S3 secret access key for writing activity-hub-lake"
+  value       = sha256(cloudflare_account_token.hub_r2_lake.value)
   sensitive   = true
 }
