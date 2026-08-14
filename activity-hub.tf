@@ -108,6 +108,28 @@ locals {
 
   # Buckets created outside a jurisdiction take `default` in the resource key.
   r2_bucket_resource_prefix = "com.cloudflare.edge.r2.bucket.${var.cloudflare_account_id}_default_"
+
+  # Wrangler touches a different Cloudflare API for each binding activity-hub
+  # declares, so a token that covers deploys but not D1 fails halfway through a
+  # migration. The list mirrors the bindings in wrangler.jsonc.
+  automation_permission_group_names = [
+    "Workers Scripts Write",
+    "Workers KV Storage Write",
+    "Workers R2 Storage Write",
+    "Workers Tail Read",
+    "D1 Write",
+    "Queues Write",
+    "Containers Write",
+  ]
+
+  automation_permission_groups = [
+    for name in local.automation_permission_group_names : {
+      id = one([
+        for group in data.cloudflare_account_api_token_permission_groups_list.account.result :
+        group.id if group.name == name
+      ])
+    }
+  ]
 }
 
 resource "cloudflare_account_token" "hub_r2_raw" {
@@ -179,5 +201,64 @@ output "activity_hub_r2_lake_access_key_id" {
 output "activity_hub_r2_lake_secret_access_key" {
   description = "S3 secret access key for writing activity-hub-lake"
   value       = sha256(cloudflare_account_token.hub_r2_lake.value)
+  sensitive   = true
+}
+
+# Wrangler's own OAuth login expires within a day and cannot be refreshed
+# non-interactively, which stalls any unattended work against the worker. This
+# token replaces that login, and rotating it is an apply rather than a browser
+# round trip.
+
+resource "cloudflare_account_token" "hub_automation" {
+  account_id = var.cloudflare_account_id
+  name       = "activity-hub automation"
+  expires_on = "2027-08-12T00:00:00Z"
+
+  policies = [{
+    effect            = "allow"
+    permission_groups = local.automation_permission_groups
+
+    resources = jsonencode({
+      "com.cloudflare.api.account.${var.cloudflare_account_id}" = "*"
+    })
+  }]
+
+  lifecycle {
+    precondition {
+      # A name that stops matching yields a null id, which Cloudflare rejects
+      # with an error naming neither the token nor the group.
+      condition = alltrue([
+        for group in local.automation_permission_groups : group.id != null
+      ])
+      error_message = join(" ", [
+        "One of automation_permission_group_names no longer matches a Cloudflare permission group.",
+        "Available account groups:",
+        join(", ", sort([
+          for group in data.cloudflare_account_api_token_permission_groups_list.account.result :
+          group.name
+        ])),
+      ])
+    }
+  }
+}
+
+# The admin routes authenticate a bearer token behind Access. Generating it here
+# means an unattended session can read it back from state instead of asking for
+# a value only the worker knows.
+
+resource "random_password" "hub_admin" {
+  length  = 48
+  special = false
+}
+
+output "activity_hub_admin_token" {
+  description = "Bearer token for the activity-hub /admin routes"
+  value       = random_password.hub_admin.result
+  sensitive   = true
+}
+
+output "activity_hub_cloudflare_api_token" {
+  description = "CLOUDFLARE_API_TOKEN for wrangler against activity-hub"
+  value       = cloudflare_account_token.hub_automation.value
   sensitive   = true
 }
