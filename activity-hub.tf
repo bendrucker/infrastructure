@@ -119,7 +119,9 @@ locals {
     "Workers Tail Read",
     "D1 Write",
     "Queues Write",
-    "Containers Write",
+    "Workers Containers Write",
+    "Workers R2 Data Catalog Write",
+    "Account Settings Read",
   ]
 
   automation_permission_groups = [
