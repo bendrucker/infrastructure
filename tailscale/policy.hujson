@@ -94,9 +94,7 @@
 							"*",
 						],
 						"resources": [
-							"https://tailgate.tailaa2f5e.ts.net/mcp/fake",
-							"https://tailgate.tailaa2f5e.ts.net/mcp/files",
-							"https://tailgate.tailaa2f5e.ts.net/mcp/denied",
+							"https://tailgate.tailaa2f5e.ts.net/mcp/things",
 						],
 						"allow_admin_ui": true,
 						"allow_dcr":      true,
@@ -106,12 +104,33 @@
 		},
 	],
 
-	// Test access rules every time they're saved.
-	// "tests": [
-	//   {
-	//       "src": "alice@example.com",
-	//       "accept": ["tag:example"],
-	//       "deny": ["100.101.102.103:443"],
-	//   },
-	// ],
+	// Named so the tests below can refer to them. Tests match destinations as
+	// ip:port, and a bare MagicDNS name is not a valid ACL destination.
+	"hosts": {
+		"tailgate": "100.100.143.65",
+		"idp":      "100.95.42.112",
+	},
+
+	// Tailscale validates these server-side on every save, so a policy that
+	// breaks one of these paths fails the apply instead of reaching the tailnet.
+	//
+	// Both assertions are trivially true while the grant above is "src": ["*"],
+	// "dst": ["*"], "ip": ["*"]. They exist for the edit that narrows it, which
+	// the default policy's own comment invites.
+	"tests": [
+		{
+			// tailgate introspects every bearer token against tsidp before
+			// proxying. Cut this path and every request fails auth with nothing
+			// in tailgate's logs naming the tailnet as the cause.
+			"src":    "tailgate",
+			"accept": ["idp:443"],
+		},
+		{
+			// Reaching tailgate from inside the tailnet. Funnel traffic arrives
+			// from the public internet and never consults this, so losing it
+			// breaks tailnet clients only.
+			"src":    "bvdrucker@gmail.com",
+			"accept": ["tailgate:443"],
+		},
+	],
 }
