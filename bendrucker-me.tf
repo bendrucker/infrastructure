@@ -17,6 +17,13 @@ locals {
     "Account Settings Read",
   ]
 
+  # Worker routes are zone-scoped, so they cannot ride along in the account
+  # policy above and need a second policy naming the zone.
+  bendrucker_me_routes_write = one([
+    for group in data.cloudflare_account_api_token_permission_groups_list.account.result :
+    group.id if group.name == "Workers Routes Write"
+  ])
+
   bendrucker_me_permission_groups = [
     for name in local.bendrucker_me_permission_group_names : {
       id = one([
@@ -34,24 +41,40 @@ resource "cloudflare_account_token" "bendrucker_me_ci" {
   # workspace issues.
   expires_on = "2027-08-12T00:00:00Z"
 
-  policies = [{
-    effect            = "allow"
-    permission_groups = local.bendrucker_me_permission_groups
+  policies = [
+    {
+      effect            = "allow"
+      permission_groups = local.bendrucker_me_permission_groups
 
-    resources = jsonencode({
-      "com.cloudflare.api.account.${var.cloudflare_account_id}" = "*"
-    })
-  }]
+      resources = jsonencode({
+        "com.cloudflare.api.account.${var.cloudflare_account_id}" = "*"
+      })
+    },
+    # The www worker declares a custom_domain route, so wrangler updates
+    # /zones/{zone}/workers/routes on every deploy.
+    {
+      effect = "allow"
+
+      permission_groups = [{
+        id = local.bendrucker_me_routes_write
+      }]
+
+      resources = jsonencode({
+        "com.cloudflare.api.account.zone.${cloudflare_zone.vanity.id}" = "*"
+      })
+    },
+  ]
 
   lifecycle {
     precondition {
       # A name that stops matching yields a null id, which Cloudflare rejects
       # with an error naming neither the token nor the group.
-      condition = alltrue([
-        for group in local.bendrucker_me_permission_groups : group.id != null
-      ])
+      condition = alltrue(concat(
+        [for group in local.bendrucker_me_permission_groups : group.id != null],
+        [local.bendrucker_me_routes_write != null],
+      ))
       error_message = join(" ", [
-        "One of bendrucker_me_permission_group_names no longer matches a Cloudflare permission group.",
+        "A bendrucker.me CI permission group name no longer matches a Cloudflare permission group.",
         "Available account groups:",
         join(", ", sort([
           for group in data.cloudflare_account_api_token_permission_groups_list.account.result :
