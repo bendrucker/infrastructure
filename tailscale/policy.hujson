@@ -74,7 +74,6 @@
 				"tailscale.com/cap/tsidp": [{
 					"users":     ["bvdrucker@gmail.com"],
 					"resources": ["https://studio.tailaa2f5e.ts.net/mcp"],
-					"allow_dcr": true,
 				}],
 			},
 		},
@@ -96,10 +95,26 @@
 						"resources": [
 							"https://tailgate.tailaa2f5e.ts.net/mcp/things",
 						],
-						"allow_admin_ui": true,
-						"allow_dcr":      true,
 					},
 				],
+			},
+		},
+		// tsidp accumulates allow_admin_ui and allow_dcr across every rule in the
+		// caller's CapMap and never reads a rule's "users", so the grant's "src" is
+		// the only thing that scopes them. Carrying them on the grants above handed
+		// both to every node in the tailnet, tagged nodes included.
+		//
+		// This rule sets no "users" or "resources" on purpose. Neither would do
+		// anything here, and a rule that matches no resource is skipped rather than
+		// rejected, so it cannot affect the audience check above.
+		{
+			"src": ["bvdrucker@gmail.com"],
+			"dst": ["*"],
+			"app": {
+				"tailscale.com/cap/tsidp": [{
+					"allow_admin_ui": true,
+					"allow_dcr":      true,
+				}],
 			},
 		},
 	],
