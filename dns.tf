@@ -7,7 +7,7 @@ resource "cloudflare_zone" "vanity" {
 }
 
 # The apex record and the apex-to-www redirect belong to the website, so
-# bendrucker/bendrucker.me adopts them in its own infra root with import blocks.
+# bendrucker/bendrucker.me adopts them in its own terraform root with import blocks.
 # Dropping them from state here leaves both Cloudflare objects untouched. The
 # zone stays: it is shared substrate for the records below and for activity-hub.
 #
