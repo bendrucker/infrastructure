@@ -99,32 +99,6 @@ resource "github_actions_secret" "bendrucker_me_ci" {
 # pointed at the repo, and a Cloudflare token narrow enough that the repo can be
 # trusted with a plan.
 
-resource "tfe_workspace" "bendrucker_me" {
-  # Workspace names cannot contain dots.
-  name         = "bendrucker-me"
-  organization = "bendrucker"
-
-  auto_apply = true
-
-  # The repo is a website first. Only the infra subtree is Terraform, so a
-  # content commit must not queue a run.
-  working_directory = "infra"
-  trigger_patterns  = ["infra/**"]
-
-  # Same installation as the one this workspace's own VCS connection uses, in
-  # bootstrap/main.tf.
-  vcs_repo {
-    identifier                 = "bendrucker/bendrucker.me"
-    github_app_installation_id = "ghain-fMk4yTVFAVZbgq5H"
-  }
-
-  # Creating the workspace queues a run immediately, before the variable below
-  # exists and before the repo has an infra/ directory to run against, so that
-  # first run errors. The next push under infra/ is the one that matters.
-  # queue_all_runs = false would suppress it, at the cost of ignoring every
-  # webhook until a run is queued by hand, which is the worse trade.
-}
-
 locals {
   # One per resource the infra root manages, plus the zone read every
   # zone-scoped API call is gated on. All three groups are
@@ -180,13 +154,26 @@ resource "cloudflare_account_token" "bendrucker_me_terraform" {
   }
 }
 
-resource "tfe_variable" "bendrucker_me_cloudflare_api_token" {
-  workspace_id = tfe_workspace.bendrucker_me.id
+module "bendrucker_me_workspace" {
+  source = "./modules/app-workspace"
 
-  category  = "env"
-  key       = "CLOUDFLARE_API_TOKEN"
-  value     = cloudflare_account_token.bendrucker_me_terraform.value
-  sensitive = true
+  name                       = "bendrucker-me"
+  organization               = "bendrucker"
+  repository                 = "bendrucker/bendrucker.me"
+  github_app_installation_id = var.github_app_installation_id
+  cloudflare_api_token       = cloudflare_account_token.bendrucker_me_terraform.value
+}
 
-  description = "Zone-scoped credential the infra root runs as. Minted in bendrucker/infrastructure."
+# activity-hub is the second repo to get this grant, so the workspace and its
+# credential variable moved into a module. Both objects already exist and are
+# unchanged. Only their addresses are new.
+
+moved {
+  from = tfe_workspace.bendrucker_me
+  to   = module.bendrucker_me_workspace.tfe_workspace.this
+}
+
+moved {
+  from = tfe_variable.bendrucker_me_cloudflare_api_token
+  to   = module.bendrucker_me_workspace.tfe_variable.cloudflare_api_token
 }
