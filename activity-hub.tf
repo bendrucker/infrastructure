@@ -237,15 +237,24 @@ resource "cloudflare_account_token" "hub_automation" {
   }
 }
 
-# The secret already holds this value, pasted by hand from the output this
-# replaces. Naming the resource that mints it makes a rotation an apply, and
-# takes the value off the path through a terminal. It is the only secret
-# activity-hub's CI reads: the deploy job passes it to `wrangler d1 migrations
-# apply` and `wrangler deploy`.
+# The secret already holds this value, pasted by hand from the output below.
+# Naming the resource that mints it makes a rotation an apply, so the CI copy
+# no longer has to be re-pasted. It is the only secret activity-hub's CI reads:
+# the deploy job passes it to `wrangler d1 migrations apply` and
+# `wrangler deploy`.
 resource "github_actions_secret" "activity_hub_ci" {
   repository      = "activity-hub"
   secret_name     = "CLOUDFLARE_API_TOKEN"
   plaintext_value = cloudflare_account_token.hub_automation.value
+}
+
+# A GitHub secret is write-only, and the hub's readme documents this token as
+# what wrangler runs under from a laptop as well. The output is the only way to
+# read the value back for that.
+output "activity_hub_cloudflare_api_token" {
+  description = "CLOUDFLARE_API_TOKEN for wrangler against activity-hub"
+  value       = cloudflare_account_token.hub_automation.value
+  sensitive   = true
 }
 
 # The hub repo manages the resources the removed blocks above drop, from an
@@ -347,4 +356,6 @@ module "activity_hub_workspace" {
   repository                 = "bendrucker/activity-hub"
   github_app_installation_id = var.github_app_installation_id
   cloudflare_api_token       = cloudflare_account_token.activity_hub_terraform.value
+
+  cloudflare_api_token_description = "Access-scoped on the account and zone-scoped on bendrucker.me. Minted in bendrucker/infrastructure."
 }

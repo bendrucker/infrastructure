@@ -15,6 +15,10 @@ terraform {
       version = "~> 6.0"
     }
 
+    # random_password.hub_admin is the last resource of this provider, and
+    # activity-hub.tf is dropping it from state. The declaration stays until
+    # that apply lands, because Terraform reads a provider's schema to decode
+    # the instance it is forgetting.
     random = {
       source  = "hashicorp/random"
       version = "~> 3.0"

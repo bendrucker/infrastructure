@@ -34,5 +34,5 @@ resource "tfe_variable" "cloudflare_api_token" {
   value     = var.cloudflare_api_token
   sensitive = true
 
-  description = "Scoped credential the infra root runs as. Minted in bendrucker/infrastructure."
+  description = var.cloudflare_api_token_description
 }

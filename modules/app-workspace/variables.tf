@@ -23,3 +23,8 @@ variable "cloudflare_api_token" {
   description = "Value for the workspace's CLOUDFLARE_API_TOKEN environment variable"
   sensitive   = true
 }
+
+variable "cloudflare_api_token_description" {
+  type        = string
+  description = "What the credential is scoped to, shown on the variable in Terraform Cloud. The scope differs per repo, so each caller writes its own."
+}

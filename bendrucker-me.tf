@@ -162,6 +162,8 @@ module "bendrucker_me_workspace" {
   repository                 = "bendrucker/bendrucker.me"
   github_app_installation_id = var.github_app_installation_id
   cloudflare_api_token       = cloudflare_account_token.bendrucker_me_terraform.value
+
+  cloudflare_api_token_description = "Zone-scoped credential the infra root runs as. Minted in bendrucker/infrastructure."
 }
 
 # activity-hub is the second repo to get this grant, so the workspace and its
