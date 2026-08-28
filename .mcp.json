@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "terraform": {
-      "command": "go",
-      "args": ["tool", "terraform-mcp-server", "stdio", "--toolsets=registry,terraform"]
+      "command": "sh",
+      "args": [
+        "-c",
+        "TFE_TOKEN=$(terraform-credentials-keychain get app.terraform.io | jq -r .token) exec go tool terraform-mcp-server stdio --toolsets=registry,registry-private,terraform"
+      ]
     },
     "cloudflare-docs": {
       "type": "sse",
