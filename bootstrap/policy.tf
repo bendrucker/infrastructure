@@ -16,6 +16,10 @@ locals {
 #     against the existing AdministratorAccess permission set mints a new admin.
 #   - ManagedRoles can create a role under /managed/ with a trust policy copied
 #     from this one and an inline policy of its choosing, then assume it.
+#   - MemberAccountAccess assumes OrganizationAccountAccessRole, which is
+#     administrator inside every member account. Member accounts isolate
+#     workloads from each other and from this account, never from the control
+#     plane that creates them.
 #
 # Closing those needs a read-only role for the plan phase and a permissions
 # boundary on role creation. Both are follow-up work, tracked separately. The
@@ -57,6 +61,31 @@ data "aws_iam_policy_document" "terraform" {
     ]
 
     resources = ["*"]
+  }
+
+  # The root module creates member accounts for isolated workloads (agents.tf).
+  # CloseAccount and LeaveOrganization are withheld: the control plane can
+  # create accounts and can never destroy one.
+  statement {
+    sid = "OrganizationsAccounts"
+
+    actions = [
+      "organizations:CreateAccount",
+      "organizations:MoveAccount",
+      "organizations:TagResource",
+    ]
+
+    resources = ["*"]
+  }
+
+  # OrganizationAccountAccessRole is the administrator role Organizations
+  # provisions in every member account it creates. Assuming it is how the root
+  # module reaches into a member account to lay down that account's own OIDC
+  # provider and workspace role. See the header for what this grant is worth.
+  statement {
+    sid       = "MemberAccountAccess"
+    actions   = ["sts:AssumeRole"]
+    resources = ["arn:aws:iam::*:role/OrganizationAccountAccessRole"]
   }
 
   # Creating account assignments from the organization's management account needs
