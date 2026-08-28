@@ -14,3 +14,15 @@ provider "aws" {
 provider "tailscale" {
   tailnet = "tailaa2f5e.ts.net"
 }
+
+# Both of the providers below read their credential from an environment variable
+# set as a sensitive variable on this workspace: TFE_TOKEN for tfe, GITHUB_TOKEN
+# for github. Neither value can live in this repository.
+
+# The organization is named on each resource rather than here, so a workspace
+# this root creates cannot land in a different organization by inheriting one.
+provider "tfe" {}
+
+provider "github" {
+  owner = "bendrucker"
+}
