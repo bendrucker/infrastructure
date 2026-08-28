@@ -25,11 +25,13 @@ data "aws_iam_policy_document" "terraform_trust" {
     # Terraform organization, so without the subject any organization could assume
     # this role. The project segment is wildcarded because the workspace sits in the
     # default project and pinning it would mean tracking a name that carries no
-    # security weight. The workspace name is pinned.
+    # security weight. The workspace name comes from the resource rather than a
+    # literal, so renaming the workspace cannot silently break every future run's
+    # credential exchange.
     condition {
       test     = "StringLike"
       variable = "app.terraform.io:sub"
-      values   = ["organization:bendrucker:project:*:workspace:infrastructure:run_phase:*"]
+      values   = ["organization:bendrucker:project:*:workspace:${tfe_workspace.this.name}:run_phase:*"]
     }
   }
 }

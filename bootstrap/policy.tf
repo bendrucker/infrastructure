@@ -2,10 +2,25 @@ locals {
   account_id = "278105230435"
 }
 
-# Replaces the AdministratorAccess the static key carried. Scoped to what the root
+# Narrows the AdministratorAccess the static key carried down to what the root
 # module actually manages: two S3 archives, Identity Center, and roles under
 # /managed/. Everything else in the root is Cloudflare and Tailscale, which
 # authenticate on their own credentials.
+#
+# This narrows the surface. It does not make the role non-administrative, and it
+# should not be read as if it did. Two grants below remain admin-equivalent to
+# anyone who can execute code in a run:
+#
+#   - IdentityCenter grants sso:* and identitystore:* on "*", because Identity
+#     Center has no resource-level support. CreateUser plus CreateAccountAssignment
+#     against the existing AdministratorAccess permission set mints a new admin.
+#   - ManagedRoles can create a role under /managed/ with a trust policy copied
+#     from this one and an inline policy of its choosing, then assume it.
+#
+# Closing those needs a read-only role for the plan phase and a permissions
+# boundary on role creation. Both are follow-up work, tracked separately. The
+# status quo before this file existed was a static key holding the
+# AdministratorAccess managed policy outright, so this is a narrowing either way.
 data "aws_iam_policy_document" "terraform" {
   statement {
     sid     = "Archives"
@@ -90,19 +105,18 @@ data "aws_iam_policy_document" "terraform" {
   statement {
     sid = "ManagedRoles"
 
-    actions = [
-      "iam:*Role*",
-      "iam:*RolePolicy*",
-      "iam:PassRole",
-    ]
+    # iam:*Role* already matches every role-policy action (ListRolePolicies,
+    # PutRolePolicy, AttachRolePolicy) and PassRole, so listing those separately
+    # would suggest a narrowing that removing them would not actually make.
+    actions = ["iam:*Role*"]
 
     resources = ["arn:aws:iam::${local.account_id}:role/managed/*"]
   }
 
-  # The ManagedRoles statement matches this role's own ARN, which would let a run
-  # attach AdministratorAccess to itself and make the rest of this policy
-  # decorative. Nothing in the root module touches this role, so denying it costs
-  # nothing.
+  # ManagedRoles matches this role's own ARN, so without this a run could attach
+  # AdministratorAccess directly to the role it is already using. Nothing in the
+  # root module touches this role, so denying it costs nothing. It closes the
+  # laziest path to admin, not every path: see the header comment.
   statement {
     sid       = "DenySelfModification"
     effect    = "Deny"

@@ -7,26 +7,14 @@ locals {
   management_account_id = "278105230435"
   sso_instance_arn      = one(data.aws_ssoadmin_instances.this.arns)
   identity_store_id     = one(data.aws_ssoadmin_instances.this.identity_store_ids)
-}
 
-# The console generates the permission set ARN and the user ID, so the import
-# blocks below read them back rather than hard-coding values that would have to be
-# transcribed by hand. Terraform resolves data sources during plan, which is when
-# import IDs are needed.
-data "aws_ssoadmin_permission_set" "administrator" {
-  instance_arn = local.sso_instance_arn
-  name         = "AdministratorAccess"
-}
-
-data "aws_identitystore_user" "ben" {
-  identity_store_id = local.identity_store_id
-
-  alternate_identifier {
-    unique_attribute {
-      attribute_path  = "UserName"
-      attribute_value = "ben"
-    }
-  }
+  # AWS generated these two when the objects were created. The import blocks below
+  # are a one-time adoption record, so the identifiers are written down rather than
+  # looked up: a data source per import would keep costing an API call on every
+  # future plan, and would fail the whole root module if either lookup ever came
+  # back empty.
+  administrator_permission_set_arn = "arn:aws:sso:::permissionSet/ssoins-7223a36fce422659/ps-72233c40c5ae62f1"
+  ben_user_id                      = "34e894a8-3061-700e-cc7f-dc0dc6db1f43"
 }
 
 resource "aws_ssoadmin_permission_set" "administrator" {
@@ -38,7 +26,7 @@ resource "aws_ssoadmin_permission_set" "administrator" {
 
 import {
   to = aws_ssoadmin_permission_set.administrator
-  id = "${data.aws_ssoadmin_permission_set.administrator.arn},${local.sso_instance_arn}"
+  id = "${local.administrator_permission_set_arn},${local.sso_instance_arn}"
 }
 
 resource "aws_ssoadmin_managed_policy_attachment" "administrator" {
@@ -49,7 +37,7 @@ resource "aws_ssoadmin_managed_policy_attachment" "administrator" {
 
 import {
   to = aws_ssoadmin_managed_policy_attachment.administrator
-  id = "arn:aws:iam::aws:policy/AdministratorAccess,${data.aws_ssoadmin_permission_set.administrator.arn},${local.sso_instance_arn}"
+  id = "arn:aws:iam::aws:policy/AdministratorAccess,${local.administrator_permission_set_arn},${local.sso_instance_arn}"
 }
 
 resource "aws_identitystore_user" "ben" {
@@ -71,7 +59,7 @@ resource "aws_identitystore_user" "ben" {
 
 import {
   to = aws_identitystore_user.ben
-  id = "${local.identity_store_id}/${data.aws_identitystore_user.ben.user_id}"
+  id = "${local.identity_store_id}/${local.ben_user_id}"
 }
 
 resource "aws_ssoadmin_account_assignment" "ben_management" {
@@ -94,7 +82,7 @@ resource "aws_ssoadmin_account_assignment" "ben_management" {
 
 import {
   to = aws_ssoadmin_account_assignment.ben_management
-  id = "${data.aws_identitystore_user.ben.user_id},USER,${local.management_account_id},AWS_ACCOUNT,${data.aws_ssoadmin_permission_set.administrator.arn},${local.sso_instance_arn}"
+  id = "${local.ben_user_id},USER,${local.management_account_id},AWS_ACCOUNT,${local.administrator_permission_set_arn},${local.sso_instance_arn}"
 }
 
 # Everyday access. ReadOnlyAccess rather than the job-function ViewOnlyAccess so
