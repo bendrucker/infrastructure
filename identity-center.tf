@@ -111,3 +111,29 @@ resource "aws_ssoadmin_account_assignment" "ben_management_view" {
   target_id   = local.management_account_id
   target_type = "AWS_ACCOUNT"
 }
+
+# The agents member account gets the same pair: everyday reads under View,
+# writes under Administrator. These assignments are the only human path into
+# the account besides its root user, whose email is an alias nobody logs in
+# with.
+resource "aws_ssoadmin_account_assignment" "ben_agents" {
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.administrator.arn
+
+  principal_id   = aws_identitystore_user.ben.user_id
+  principal_type = "USER"
+
+  target_id   = aws_organizations_account.agents.id
+  target_type = "AWS_ACCOUNT"
+}
+
+resource "aws_ssoadmin_account_assignment" "ben_agents_view" {
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.view.arn
+
+  principal_id   = aws_identitystore_user.ben.user_id
+  principal_type = "USER"
+
+  target_id   = aws_organizations_account.agents.id
+  target_type = "AWS_ACCOUNT"
+}
