@@ -13,7 +13,7 @@ if ! terraform -chdir="$cwd" fmt -recursive -check >/dev/null 2>&1; then
   failed=1
 fi
 
-for root in "$cwd" "$cwd/workspace"; do
+for root in "$cwd" "$cwd/bootstrap"; do
   if [ ! -d "$root/.terraform" ]; then
     continue
   fi

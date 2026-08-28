@@ -18,8 +18,8 @@ Plans and applies run remotely via Terraform Cloud (`app.terraform.io`, org `ben
 
 Two independent Terraform root modules:
 
-- **Root (`/`)** — primary infrastructure: Cloudflare DNS for `bendrucker.me`, S3 archive buckets (documents, photos) via the `archive` module. Providers: AWS (`us-east-1`), Cloudflare.
-- **`/workspace`** — self-managing Terraform Cloud workspace configuration (`tfe_workspace`). Provider: `tfe`.
+- **Root (`/`)** — primary infrastructure: Cloudflare DNS for `bendrucker.me`, S3 archive buckets (documents, photos) via the `archive` module, IAM Identity Center, GitHub Actions OIDC. Providers: AWS (`us-east-1`), Cloudflare. Authenticates to AWS by OIDC, with no static key.
+- **`/bootstrap`** — what must exist before Terraform Cloud can run: the AWS OIDC provider and execution role the root module assumes, the workspace itself (`tfe_workspace`), and the `TFC_AWS_*` variables. Runs locally under `aws sso login` with state committed to git, so it holds no secrets. Providers: `tfe`, AWS.
 
 Dependabot manages weekly provider version bumps for both roots and GitHub Actions.
 
