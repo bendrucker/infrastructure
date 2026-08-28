@@ -43,6 +43,22 @@ resource "aws_organizations_account" "agents" {
   }
 }
 
+# Nothing in the agents account serves public objects, so public access is
+# blocked at the account rather than repeated per bucket. The run role
+# cannot loosen this: s3:PutAccountPublicAccessBlock acts on the account,
+# never on a bucket ARN, so the ben-drucker-agents-* grant does not reach
+# it.
+resource "aws_s3_account_public_access_block" "agents" {
+  provider = aws.agents
+
+  account_id = aws_organizations_account.agents.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 # Mirrors bootstrap/terraform-cloud.tf: the same identity provider, laid
 # down inside the agents account so the workspace role can live there.
 resource "aws_iam_openid_connect_provider" "agents_terraform" {
@@ -114,7 +130,9 @@ resource "aws_iam_role_policy" "agents_terraform" {
 module "bendrucker_claude_workspace" {
   source = "./modules/app-workspace"
 
-  name                       = "bendrucker-claude"
+  # Named after the repo, like the infrastructure workspace. The OIDC trust
+  # above follows the rename through the module's name output.
+  name                       = "claude"
   organization               = "bendrucker"
   repository                 = "bendrucker/claude"
   github_app_installation_id = var.github_app_installation_id
