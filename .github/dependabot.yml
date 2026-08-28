@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: "terraform"
     directories:
       - "/"
-      - "/workspace"
+      - "/bootstrap"
     schedule:
       interval: "weekly"
 
