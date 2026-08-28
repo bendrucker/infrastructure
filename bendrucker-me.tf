@@ -94,13 +94,13 @@ resource "github_actions_secret" "bendrucker_me_ci" {
   plaintext_value = cloudflare_account_token.bendrucker_me_ci.value
 }
 
-# The website repo manages its own DNS record and redirect ruleset from an
-# `infra/` root. Everything below is what that root needs to run: a workspace
+# The website repo manages its own DNS record and redirect ruleset from a
+# `terraform/` root. Everything below is what that root needs to run: a workspace
 # pointed at the repo, and a Cloudflare token narrow enough that the repo can be
 # trusted with a plan.
 
 locals {
-  # One per resource the infra root manages, plus the zone read every
+  # One per resource the terraform root manages, plus the zone read every
   # zone-scoped API call is gated on. All three groups are
   # com.cloudflare.api.account.zone, so unlike the CI token above this needs no
   # account policy at all and cannot reach Workers, R2, or D1.
@@ -161,21 +161,25 @@ module "bendrucker_me_workspace" {
   organization               = "bendrucker"
   repository                 = "bendrucker/bendrucker.me"
   github_app_installation_id = var.github_app_installation_id
-  cloudflare_api_token       = cloudflare_account_token.bendrucker_me_terraform.value
-
-  cloudflare_api_token_description = "Zone-scoped credential the infra root runs as. Minted in bendrucker/infrastructure."
 }
 
-# activity-hub is the second repo to get this grant, so the workspace and its
-# credential variable moved into a module. Both objects already exist and are
-# unchanged. Only their addresses are new.
+resource "tfe_variable" "bendrucker_me_cloudflare_api_token" {
+  workspace_id = module.bendrucker_me_workspace.id
+
+  category  = "env"
+  key       = "CLOUDFLARE_API_TOKEN"
+  value     = cloudflare_account_token.bendrucker_me_terraform.value
+  sensitive = true
+
+  description = "Zone-scoped credential the terraform root runs as. Minted in bendrucker/infrastructure."
+}
+
+# activity-hub is the second repo to get this grant, so the workspace moved
+# into a module. The credential variable stays here: not every workspace runs
+# as a Cloudflare token, so each caller declares its own variables. The
+# workspace already exists and is unchanged. Only its address is new.
 
 moved {
   from = tfe_workspace.bendrucker_me
   to   = module.bendrucker_me_workspace.tfe_workspace.this
-}
-
-moved {
-  from = tfe_variable.bendrucker_me_cloudflare_api_token
-  to   = module.bendrucker_me_workspace.tfe_variable.cloudflare_api_token
 }

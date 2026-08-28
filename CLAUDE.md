@@ -26,7 +26,7 @@ Dependabot manages weekly provider version bumps for both roots and GitHub Actio
 ## Modules
 
 - `modules/archive` — S3 bucket with a lifecycle rule that transitions objects under the `Archive/` prefix to Glacier after 1 day. Parameterized by `name`.
-- `modules/app-workspace`: the Terraform Cloud workspace an app repo's `infra/` root runs in, plus its `CLOUDFLARE_API_TOKEN` env variable. `working_directory` and `trigger_patterns` are fixed to `infra`. Per-repo token policies and GitHub Actions secrets stay in the repo's top-level `.tf` file.
+- `modules/app-workspace`: the Terraform Cloud workspace an app repo's `terraform/` root runs in. `working_directory` and `trigger_patterns` are fixed to `terraform`. Per-repo credential variables, token policies, and GitHub Actions secrets stay in the repo's top-level `.tf` file.
 
 ## CI
 

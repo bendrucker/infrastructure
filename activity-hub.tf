@@ -1,6 +1,6 @@
 # activity-hub deploys its own hostname, worker route, the Access applications
 # in front of /admin and /auth, and the bearer token behind them. All of it
-# moves to bendrucker/activity-hub, which adopts each object in an `infra/`
+# moves to bendrucker/activity-hub, which adopts each object in a `terraform/`
 # root with import blocks. Dropping them from state here leaves the Cloudflare
 # objects untouched. The zone stays: it is shared substrate.
 #
@@ -258,7 +258,7 @@ output "activity_hub_cloudflare_api_token" {
 }
 
 # The hub repo manages the resources the removed blocks above drop, from an
-# `infra/` root. Everything below is what that root needs to run: a workspace
+# `terraform/` root. Everything below is what that root needs to run: a workspace
 # pointed at the repo, and a Cloudflare token narrow enough that the repo can be
 # trusted with a plan. API Tokens Write is not on it, so the hub repo cannot
 # widen its own grant and the three tokens above stay minted here.
@@ -355,7 +355,15 @@ module "activity_hub_workspace" {
   organization               = "bendrucker"
   repository                 = "bendrucker/activity-hub"
   github_app_installation_id = var.github_app_installation_id
-  cloudflare_api_token       = cloudflare_account_token.activity_hub_terraform.value
+}
 
-  cloudflare_api_token_description = "Access-scoped on the account and zone-scoped on bendrucker.me. Minted in bendrucker/infrastructure."
+resource "tfe_variable" "activity_hub_cloudflare_api_token" {
+  workspace_id = module.activity_hub_workspace.id
+
+  category  = "env"
+  key       = "CLOUDFLARE_API_TOKEN"
+  value     = cloudflare_account_token.activity_hub_terraform.value
+  sensitive = true
+
+  description = "Access-scoped on the account and zone-scoped on bendrucker.me. Minted in bendrucker/infrastructure."
 }
