@@ -1,6 +1,5 @@
 #!/bin/bash
 input=$(cat)
-cwd=$(echo "$input" | jq -r '.cwd')
 transcript_path=$(echo "$input" | jq -r '.transcript_path')
 failed=0
 
@@ -29,10 +28,13 @@ while IFS= read -r dir; do
     continue
   fi
 
-  terraform -chdir="$dir" fmt >/dev/null 2>&1
   if ! terraform -chdir="$dir" fmt -check >/dev/null 2>&1; then
-    echo "terraform fmt failed to resolve formatting issues in $dir"
-    failed=1
+    terraform -chdir="$dir" fmt >/dev/null 2>&1
+    if ! terraform -chdir="$dir" fmt -check >/dev/null 2>&1; then
+      echo "terraform fmt failed to resolve formatting issues in $dir"
+      failed=1
+      continue
+    fi
   fi
 
   if ! terraform -chdir="$dir" init -backend=false >/dev/null 2>&1; then
