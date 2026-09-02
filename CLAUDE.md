@@ -34,7 +34,7 @@ GitHub Actions on pull requests:
 - `tflint` via reviewdog
 - `terraform fmt` with auto-commit if formatting changes are needed
 
-Both run at the repository root without recursion, so neither covers `bootstrap/`. The `terraform-check.sh` hook validates both roots locally.
+Both run at the repository root without recursion, so neither covers `bootstrap/`. The `terraform-check.sh` Stop hook validates locally, scoped to the directories containing `.tf`/`.tfvars` files the session edited.
 
 Terraform Cloud runs plan on PR and apply on merge to `main`. To monitor runs after merge, use the TFC API via `curl` with `$TFE_TOKEN` (set via `terraform login`). Fetch apply details from `/api/v2/applies/{id}` to get the `log-read-url`, then fetch logs from that URL.
 
