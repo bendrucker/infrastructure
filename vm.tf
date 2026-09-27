@@ -1,14 +1,14 @@
 # VMs join the tailnet so the laptop reaches them directly rather than only
 # through Session Manager. The vm launcher in dotfiles mints a single-use auth
 # key per VM from the laptop, so no Tailscale credential reaches a VM, which
-# runs arbitrary code. It assumes vm-launcher and exchanges a token AWS signs
-# for that role, so there is no client secret to store or rotate.
+# runs arbitrary code. It authenticates by assuming vm-launcher and exchanging
+# a token AWS signs for that role.
 resource "aws_iam_outbound_web_identity_federation" "performance" {
   provider = aws.performance
 }
 
-# Trusting the account delegates to IAM, so the administrator SSO session can
-# assume the role without naming its generated role.
+# Trusting the account delegates to IAM, so any principal whose policy allows
+# sts:AssumeRole on this role can assume it, including the SSO admin session.
 data "aws_iam_policy_document" "vm_launcher_trust" {
   statement {
     actions = ["sts:AssumeRole"]

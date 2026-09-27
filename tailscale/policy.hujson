@@ -64,11 +64,11 @@
 	],
 
 	// A tag must have an owner before any credential can apply it. The
-	// workspace's federated identity carries tag:terraform, so a tag it owns
-	// can go on OAuth clients the workspace creates without a bootstrap change.
+	// workspace's federated identity carries tag:terraform, so it can apply
+	// any tag listing tag:terraform as an owner.
 	"tagOwners": {
 		"tag:terraform": ["autogroup:admin"],
-		// vm.tf's OAuth client mints auth keys with this tag.
+		// vm.tf's federated identity mints auth keys with this tag.
 		"tag:vm": ["autogroup:admin", "tag:terraform"],
 	},
 
