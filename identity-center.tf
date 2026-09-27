@@ -137,3 +137,26 @@ resource "aws_ssoadmin_account_assignment" "ben_agents_view" {
   target_id   = aws_organizations_account.agents.id
   target_type = "AWS_ACCOUNT"
 }
+
+# The performance member account gets the same pair.
+resource "aws_ssoadmin_account_assignment" "ben_performance" {
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.administrator.arn
+
+  principal_id   = aws_identitystore_user.ben.user_id
+  principal_type = "USER"
+
+  target_id   = aws_organizations_account.performance.id
+  target_type = "AWS_ACCOUNT"
+}
+
+resource "aws_ssoadmin_account_assignment" "ben_performance_view" {
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.view.arn
+
+  principal_id   = aws_identitystore_user.ben.user_id
+  principal_type = "USER"
+
+  target_id   = aws_organizations_account.performance.id
+  target_type = "AWS_ACCOUNT"
+}

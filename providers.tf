@@ -19,6 +19,17 @@ provider "aws" {
   }
 }
 
+# The performance member account, reached the same way. performance.tf lays
+# down everything inside it, since no app workspace runs there.
+provider "aws" {
+  alias  = "performance"
+  region = "us-east-1"
+
+  assume_role {
+    role_arn = "arn:aws:iam::${aws_organizations_account.performance.id}:role/OrganizationAccountAccessRole"
+  }
+}
+
 # Credentials come from TAILSCALE_OAUTH_CLIENT_ID and TAILSCALE_OAUTH_CLIENT_SECRET,
 # set as environment variables on the Terraform Cloud workspace. The tailnet is named
 # explicitly rather than left to default to "-" (whichever tailnet owns the
