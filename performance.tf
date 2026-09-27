@@ -26,9 +26,9 @@ resource "aws_organizations_account" "performance" {
   }
 }
 
-# A forgotten instance is the cost that matters here. The instance TTL in the
-# launch template is the first line of defense. The budget catches whatever
-# gets past it, hours late, since AWS refreshes budget data a few times a day.
+# This budget is a backstop behind the instance timer and the reaper: it
+# catches whatever outlives both, hours late, since AWS refreshes budget
+# data only a few times a day.
 resource "aws_budgets_budget" "performance" {
   provider = aws.performance
 
@@ -289,12 +289,14 @@ resource "aws_launch_template" "performance" {
   image_id      = "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
   instance_type = "c8g.xlarge"
 
-  instance_initiated_shutdown_behavior = "terminate"
+  # Shutting down pauses the instance and keeps its disk, so a sandbox can
+  # resume where it left off. The reaper terminates it after its lifetime.
+  instance_initiated_shutdown_behavior = "stop"
 
-  # With shutdown set to terminate, this bounds a forgotten instance to four
-  # hours. A launcher that passes its own user data replaces this script and
-  # has to carry the TTL itself. `sudo shutdown -c` cancels it on a session
-  # that runs long.
+  # Pauses a forgotten instance after four hours. A launcher that passes its
+  # own user data replaces this script and has to carry the timer itself.
+  # `sudo shutdown -c` cancels it on a session that runs long, up to the
+  # reaper's runtime ceiling.
   user_data = base64encode(<<-EOT
     #!/bin/sh
     shutdown -h +240
@@ -331,5 +333,192 @@ resource "aws_launch_template" "performance" {
   tag_specifications {
     resource_type = "volume"
     tags          = { Name = "performance" }
+  }
+}
+
+# Compute is the cost that matters, and disk is cheap, so instances pause
+# rather than end. The launcher's shutdown timer and expires-at tag are the
+# per-run controls, and both live on the instance, where a cancelled timer or
+# a crashed launcher defeats them. This job runs every 15 minutes from
+# outside the instance. It stops whatever has run past the runtime ceiling
+# since its last start or past its own expiry, and terminates whatever has
+# existed past the lifetime.
+locals {
+  performance_max_runtime_hours = 12
+  performance_max_lifetime_days = 7
+
+  performance_expiry_grace_minutes = 15
+}
+
+data "archive_file" "performance_reaper" {
+  type        = "zip"
+  source_file = "${path.module}/functions/performance-reaper/reaper.py"
+  output_path = "${path.module}/.terraform/archives/performance-reaper.zip"
+}
+
+data "aws_iam_policy_document" "performance_reaper_trust" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "performance_reaper" {
+  provider = aws.performance
+
+  name               = "performance-reaper"
+  path               = "/managed/"
+  assume_role_policy = data.aws_iam_policy_document.performance_reaper_trust.json
+}
+
+resource "aws_cloudwatch_log_group" "performance_reaper" {
+  provider = aws.performance
+
+  name              = "/aws/lambda/performance-reaper"
+  retention_in_days = 30
+}
+
+data "aws_iam_policy_document" "performance_reaper" {
+  statement {
+    sid       = "FindInstances"
+    actions   = ["ec2:DescribeInstances"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "StopAndTerminateInstances"
+    actions   = ["ec2:StopInstances", "ec2:TerminateInstances"]
+    resources = ["arn:aws:ec2:us-east-1:${aws_organizations_account.performance.id}:instance/*"]
+  }
+
+  # Protection only blocks the actions above, so the function may clear it
+  # and nothing else. Each value key is present only when its own attribute
+  # is the one being set.
+  statement {
+    sid       = "ClearTerminationProtection"
+    actions   = ["ec2:ModifyInstanceAttribute"]
+    resources = ["arn:aws:ec2:us-east-1:${aws_organizations_account.performance.id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:Attribute/disableApiTermination"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    sid       = "ClearStopProtection"
+    actions   = ["ec2:ModifyInstanceAttribute"]
+    resources = ["arn:aws:ec2:us-east-1:${aws_organizations_account.performance.id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:Attribute/disableApiStop"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    sid       = "WriteLogs"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["${aws_cloudwatch_log_group.performance_reaper.arn}:*"]
+  }
+}
+
+resource "aws_iam_role_policy" "performance_reaper" {
+  provider = aws.performance
+
+  name   = "performance-reaper"
+  role   = aws_iam_role.performance_reaper.name
+  policy = data.aws_iam_policy_document.performance_reaper.json
+}
+
+resource "aws_lambda_function" "performance_reaper" {
+  provider = aws.performance
+
+  function_name    = "performance-reaper"
+  role             = aws_iam_role.performance_reaper.arn
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  handler          = "reaper.handler"
+  filename         = data.archive_file.performance_reaper.output_path
+  source_code_hash = data.archive_file.performance_reaper.output_base64sha256
+  timeout          = 60
+
+  environment {
+    variables = {
+      MAX_RUNTIME_HOURS    = local.performance_max_runtime_hours
+      MAX_LIFETIME_DAYS    = local.performance_max_lifetime_days
+      EXPIRY_GRACE_MINUTES = local.performance_expiry_grace_minutes
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.performance_reaper,
+    aws_iam_role_policy.performance_reaper,
+  ]
+}
+
+data "aws_iam_policy_document" "performance_reaper_scheduler_trust" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["scheduler.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:scheduler:us-east-1:${aws_organizations_account.performance.id}:schedule/default/performance-reaper"]
+    }
+  }
+}
+
+resource "aws_iam_role" "performance_reaper_scheduler" {
+  provider = aws.performance
+
+  name               = "performance-reaper-scheduler"
+  path               = "/managed/"
+  assume_role_policy = data.aws_iam_policy_document.performance_reaper_scheduler_trust.json
+}
+
+data "aws_iam_policy_document" "performance_reaper_scheduler" {
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.performance_reaper.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "performance_reaper_scheduler" {
+  provider = aws.performance
+
+  name   = "invoke-performance-reaper"
+  role   = aws_iam_role.performance_reaper_scheduler.name
+  policy = data.aws_iam_policy_document.performance_reaper_scheduler.json
+}
+
+resource "aws_scheduler_schedule" "performance_reaper" {
+  provider = aws.performance
+
+  name                = "performance-reaper"
+  schedule_expression = "rate(15 minutes)"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.performance_reaper.arn
+    role_arn = aws_iam_role.performance_reaper_scheduler.arn
+
+    retry_policy {
+      maximum_retry_attempts = 0
+    }
   }
 }
