@@ -26,7 +26,7 @@ resource "aws_organizations_account" "performance" {
   }
 }
 
-# This budget is a backstop behind the instance TTL and the reaper: it
+# This budget is a backstop behind the instance timer and the reaper: it
 # catches whatever outlives both, hours late, since AWS refreshes budget
 # data only a few times a day.
 resource "aws_budgets_budget" "performance" {
@@ -252,12 +252,14 @@ resource "aws_launch_template" "performance" {
   image_id      = "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
   instance_type = "c8g.xlarge"
 
-  instance_initiated_shutdown_behavior = "terminate"
+  # Shutting down pauses the instance and keeps its disk, so a sandbox can
+  # resume where it left off. The reaper terminates it after its lifetime.
+  instance_initiated_shutdown_behavior = "stop"
 
-  # With shutdown set to terminate, this bounds a forgotten instance to four
-  # hours. A launcher that passes its own user data replaces this script and
-  # has to carry the TTL itself. `sudo shutdown -c` cancels it on a session
-  # that runs long, up to the reaper's ceiling.
+  # Pauses a forgotten instance after four hours. A launcher that passes its
+  # own user data replaces this script and has to carry the timer itself.
+  # `sudo shutdown -c` cancels it on a session that runs long, up to the
+  # reaper's runtime ceiling.
   user_data = base64encode(<<-EOT
     #!/bin/sh
     shutdown -h +240
@@ -297,12 +299,16 @@ resource "aws_launch_template" "performance" {
   }
 }
 
-# The launcher's shutdown timer and expires-at tag are the per-run controls,
-# and both live on the instance, where a cancelled timer or a crashed
-# launcher defeats them. This job terminates from outside the instance,
-# every 15 minutes, anything past the ceiling or past its own expiry.
+# Compute is the cost that matters, and disk is cheap, so instances pause
+# rather than end. The launcher's shutdown timer and expires-at tag are the
+# per-run controls, and both live on the instance, where a cancelled timer or
+# a crashed launcher defeats them. This job runs every 15 minutes from
+# outside the instance. It stops whatever has run past the runtime ceiling
+# since its last start or past its own expiry, and terminates whatever has
+# existed past the lifetime.
 locals {
   performance_max_runtime_hours = 12
+  performance_max_lifetime_days = 7
 
   performance_expiry_grace_minutes = 15
 }
@@ -347,9 +353,36 @@ data "aws_iam_policy_document" "performance_reaper" {
   }
 
   statement {
-    sid       = "TerminateInstances"
-    actions   = ["ec2:TerminateInstances"]
+    sid       = "StopAndTerminateInstances"
+    actions   = ["ec2:StopInstances", "ec2:TerminateInstances"]
     resources = ["arn:aws:ec2:us-east-1:${aws_organizations_account.performance.id}:instance/*"]
+  }
+
+  # Protection only blocks the actions above, so the function may clear it
+  # and nothing else. Each value key is present only when its own attribute
+  # is the one being set.
+  statement {
+    sid       = "ClearTerminationProtection"
+    actions   = ["ec2:ModifyInstanceAttribute"]
+    resources = ["arn:aws:ec2:us-east-1:${aws_organizations_account.performance.id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:Attribute/disableApiTermination"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    sid       = "ClearStopProtection"
+    actions   = ["ec2:ModifyInstanceAttribute"]
+    resources = ["arn:aws:ec2:us-east-1:${aws_organizations_account.performance.id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:Attribute/disableApiStop"
+      values   = ["false"]
+    }
   }
 
   statement {
@@ -382,6 +415,7 @@ resource "aws_lambda_function" "performance_reaper" {
   environment {
     variables = {
       MAX_RUNTIME_HOURS    = local.performance_max_runtime_hours
+      MAX_LIFETIME_DAYS    = local.performance_max_lifetime_days
       EXPIRY_GRACE_MINUTES = local.performance_expiry_grace_minutes
     }
   }
