@@ -42,7 +42,11 @@ def termination_reason(instance: dict, now: datetime) -> str | None:
 
     expiry = parse_expiry(tags["expires-at"])
     if expiry is None:
-        logger.warning("%s has an unparseable expires-at %r", instance["InstanceId"], tags["expires-at"])
+        logger.warning(
+            "%s has an unparseable expires-at %r",
+            instance["InstanceId"],
+            tags["expires-at"],
+        )
         return None
     if now - expiry > EXPIRY_GRACE:
         return f"expired {expiry.isoformat()}"
@@ -52,7 +56,12 @@ def termination_reason(instance: dict, now: datetime) -> str | None:
 def expired_instances(now: datetime) -> Iterator[tuple[str, str]]:
     paginator = ec2.get_paginator("describe_instances")
     pages = paginator.paginate(
-        Filters=[{"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}]
+        Filters=[
+            {
+                "Name": "instance-state-name",
+                "Values": ["pending", "running", "stopping", "stopped"],
+            }
+        ]
     )
     for page in pages:
         for reservation in page["Reservations"]:
