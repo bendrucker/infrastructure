@@ -78,6 +78,25 @@ data "aws_iam_policy_document" "terraform" {
     resources = ["*"]
   }
 
+  # Service control policies are the guardrails on member accounts
+  # (performance.tf). Policy ARNs are generated at creation, so these cannot be
+  # scoped by resource. A run that can detach a guardrail could already assume
+  # administrator in the account it guards, so its reach is unchanged.
+  statement {
+    sid = "OrganizationsPolicies"
+
+    actions = [
+      "organizations:AttachPolicy",
+      "organizations:CreatePolicy",
+      "organizations:DeletePolicy",
+      "organizations:DetachPolicy",
+      "organizations:EnablePolicyType",
+      "organizations:UpdatePolicy",
+    ]
+
+    resources = ["*"]
+  }
+
   # OrganizationAccountAccessRole is the administrator role Organizations
   # provisions in every member account it creates. Assuming it is how the root
   # module reaches into a member account to lay down that account's own OIDC

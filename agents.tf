@@ -13,6 +13,11 @@
 resource "aws_organizations_organization" "this" {
   feature_set = "ALL"
 
+  # Enabling SCPs attaches the AWS-managed FullAWSAccess policy to every
+  # account, so accounts without their own policy see no change.
+  # performance.tf attaches the first one.
+  enabled_policy_types = ["SERVICE_CONTROL_POLICY"]
+
   # Identity Center enabled its own service access when it was turned on.
   aws_service_access_principals = ["sso.amazonaws.com"]
 }
