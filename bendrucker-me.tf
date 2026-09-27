@@ -85,13 +85,14 @@ resource "cloudflare_account_token" "bendrucker_me_ci" {
   }
 }
 
-# The secret already holds this value, pasted by hand from the output this
-# replaces. Naming the resource that mints it makes a rotation an apply, and
-# takes the value off the path through a terminal.
-resource "github_actions_secret" "bendrucker_me_ci" {
-  repository      = "bendrucker.me"
-  secret_name     = "CLOUDFLARE_API_TOKEN"
-  plaintext_value = cloudflare_account_token.bendrucker_me_ci.value
+# Cloudflare tokens are delivered from a separate workspace now. Forgetting the
+# secret keeps this workspace from writing the old value back over the new one.
+removed {
+  from = github_actions_secret.bendrucker_me_ci
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 # The website repo manages its own DNS record and redirect ruleset from a
@@ -163,15 +164,12 @@ module "bendrucker_me_workspace" {
   github_app_installation_id = var.github_app_installation_id
 }
 
-resource "tfe_variable" "bendrucker_me_cloudflare_api_token" {
-  workspace_id = module.bendrucker_me_workspace.id
+removed {
+  from = tfe_variable.bendrucker_me_cloudflare_api_token
 
-  category  = "env"
-  key       = "CLOUDFLARE_API_TOKEN"
-  value     = cloudflare_account_token.bendrucker_me_terraform.value
-  sensitive = true
-
-  description = "Zone-scoped credential the terraform root runs as. Minted in bendrucker/infrastructure."
+  lifecycle {
+    destroy = false
+  }
 }
 
 # activity-hub is the second repo to get this grant, so the workspace moved
