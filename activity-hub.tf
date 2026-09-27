@@ -237,15 +237,14 @@ resource "cloudflare_account_token" "hub_automation" {
   }
 }
 
-# The secret already holds this value, pasted by hand from the output below.
-# Naming the resource that mints it makes a rotation an apply, so the CI copy
-# no longer has to be re-pasted. It is the only secret activity-hub's CI reads:
-# the deploy job passes it to `wrangler d1 migrations apply` and
-# `wrangler deploy`.
-resource "github_actions_secret" "activity_hub_ci" {
-  repository      = "activity-hub"
-  secret_name     = "CLOUDFLARE_API_TOKEN"
-  plaintext_value = cloudflare_account_token.hub_automation.value
+# Cloudflare tokens are delivered from a separate workspace now. Forgetting the
+# secret keeps this workspace from writing the old value back over the new one.
+removed {
+  from = github_actions_secret.activity_hub_ci
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 # A GitHub secret is write-only, and the hub's readme documents this token as
@@ -357,13 +356,10 @@ module "activity_hub_workspace" {
   github_app_installation_id = var.github_app_installation_id
 }
 
-resource "tfe_variable" "activity_hub_cloudflare_api_token" {
-  workspace_id = module.activity_hub_workspace.id
+removed {
+  from = tfe_variable.activity_hub_cloudflare_api_token
 
-  category  = "env"
-  key       = "CLOUDFLARE_API_TOKEN"
-  value     = cloudflare_account_token.activity_hub_terraform.value
-  sensitive = true
-
-  description = "Access-scoped on the account and zone-scoped on bendrucker.me. Minted in bendrucker/infrastructure."
+  lifecycle {
+    destroy = false
+  }
 }
