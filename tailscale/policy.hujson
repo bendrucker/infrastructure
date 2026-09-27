@@ -63,11 +63,19 @@
 		},
 	],
 
+	// perf-vm.tf's OAuth client mints auth keys with this tag, and a tag must
+	// have an owner before any credential can apply it.
+	"tagOwners": {
+		"tag:perf-vm": ["autogroup:admin"],
+	},
+
 	"grants": [
-		// Allow all connections.
-		// Comment this section out if you want to define specific restrictions.
+		// Allow all connections from people. Tagged nodes are left out because
+		// grants only allow, so "*" would let tag:perf-vm reach the whole
+		// tailnet, and perf VMs run arbitrary code. No other tag exists yet. A
+		// new one that needs this access gets listed here by name.
 		{
-			"src": ["*"],
+			"src": ["autogroup:member"],
 			"dst": ["*"],
 			"ip":  ["*"],
 			"app": {
@@ -122,16 +130,12 @@
 	// Named so the tests below can refer to them. Tests match destinations as
 	// ip:port, and a bare MagicDNS name is not a valid ACL destination.
 	"hosts": {
-		"tailgate": "100.100.143.65",
+		"tailgate": "100.70.115.15",
 		"idp":      "100.95.42.112",
 	},
 
 	// Tailscale validates these server-side on every save, so a policy that
 	// breaks one of these paths fails the apply instead of reaching the tailnet.
-	//
-	// Both assertions are trivially true while the grant above is "src": ["*"],
-	// "dst": ["*"], "ip": ["*"]. They exist for the edit that narrows it, which
-	// the default policy's own comment invites.
 	"tests": [
 		{
 			// tailgate introspects every bearer token against tsidp before
@@ -146,6 +150,17 @@
 			// breaks tailnet clients only.
 			"src":    "bvdrucker@gmail.com",
 			"accept": ["tailgate:443"],
+		},
+		{
+			// The point of putting perf VMs on the tailnet.
+			"src":    "bvdrucker@gmail.com",
+			"accept": ["tag:perf-vm:22"],
+		},
+		{
+			// A perf VM runs whatever a benchmark brings with it. It must not be
+			// able to reach the identity provider or anything behind it.
+			"src":  "tag:perf-vm",
+			"deny": ["tailgate:443", "idp:443"],
 		},
 	],
 }
