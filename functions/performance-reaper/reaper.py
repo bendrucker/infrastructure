@@ -3,8 +3,11 @@
 Stopped instances count too, since their volumes still bill.
 """
 
+from __future__ import annotations
+
 import logging
 import os
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 
 import boto3
@@ -18,7 +21,7 @@ logger.setLevel(logging.INFO)
 ec2 = boto3.client("ec2")
 
 
-def parse_expiry(value):
+def parse_expiry(value: str) -> datetime | None:
     try:
         expiry = datetime.fromisoformat(value)
     except ValueError:
@@ -28,7 +31,7 @@ def parse_expiry(value):
     return expiry
 
 
-def termination_reason(instance, now):
+def termination_reason(instance: dict, now: datetime) -> str | None:
     launched = instance["LaunchTime"]
     if now - launched > MAX_RUNTIME:
         return f"launched {launched.isoformat()}, over the {MAX_RUNTIME} limit"
@@ -46,7 +49,7 @@ def termination_reason(instance, now):
     return None
 
 
-def expired_instances(now):
+def expired_instances(now: datetime) -> Iterator[tuple[str, str]]:
     paginator = ec2.get_paginator("describe_instances")
     pages = paginator.paginate(
         Filters=[{"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}]
@@ -59,10 +62,10 @@ def expired_instances(now):
                     yield instance["InstanceId"], reason
 
 
-def handler(event, context):
+def handler(event: dict, context: object) -> dict[str, list[str]]:
     now = datetime.now(timezone.utc)
-    terminated = []
-    failed = []
+    terminated: list[str] = []
+    failed: list[str] = []
 
     # One call per instance, so one that refuses termination does not
     # shield the rest.
