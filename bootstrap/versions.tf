@@ -7,6 +7,11 @@ terraform {
       version = "~> 6.0"
     }
 
+    tailscale = {
+      source  = "tailscale/tailscale"
+      version = "~> 0.29"
+    }
+
     tfe = {
       source  = "hashicorp/tfe"
       version = "~> 0.65"

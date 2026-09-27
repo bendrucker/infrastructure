@@ -7,3 +7,8 @@ provider "tfe" {
 provider "aws" {
   region = "us-east-1"
 }
+
+# Credentials come from TAILSCALE_API_KEY, a short-lived API access token.
+provider "tailscale" {
+  tailnet = "tailaa2f5e.ts.net"
+}

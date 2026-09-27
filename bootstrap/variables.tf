@@ -1,9 +1,5 @@
-# Only the dynamic-credential pair is managed here. CLOUDFLARE_API_TOKEN,
-# TAILSCALE_OAUTH_CLIENT_ID, TAILSCALE_OAUTH_CLIENT_SECRET, TFE_TOKEN, and
-# GITHUB_TOKEN hold secrets whose values cannot live in git alongside this
-# root's committed state, so they stay under manual management in the
-# workspace. Deleting any of the five fails the next run at provider
-# configuration, before it plans anything.
+# CLOUDFLARE_API_TOKEN, TFE_TOKEN, and GITHUB_TOKEN hold secrets that cannot
+# live in committed state, so they stay under manual management.
 resource "tfe_variable" "aws_provider_auth" {
   workspace_id = tfe_workspace.this.id
 

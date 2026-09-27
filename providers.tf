@@ -30,13 +30,13 @@ provider "aws" {
   }
 }
 
-# Credentials come from TAILSCALE_OAUTH_CLIENT_ID and TAILSCALE_OAUTH_CLIENT_SECRET,
-# set as environment variables on the Terraform Cloud workspace. The tailnet is named
-# explicitly rather than left to default to "-" (whichever tailnet owns the
-# credentials), so a wrong OAuth client fails the API call instead of rewriting a
-# different tailnet's policy file.
+# Authenticates by workload identity federation, configured in
+# bootstrap/tailscale.tf. The tailnet is named explicitly so a wrong client ID
+# fails instead of rewriting a different tailnet's policy file.
 provider "tailscale" {
   tailnet = "tailaa2f5e.ts.net"
+
+  identity_token_environment_variable_name = "TFC_WORKLOAD_IDENTITY_TOKEN_TAILSCALE"
 }
 
 # Both of the providers below read their credential from an environment variable

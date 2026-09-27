@@ -19,7 +19,7 @@ Plans and applies for the root module run remotely via Terraform Cloud (`app.ter
 Two independent Terraform root modules:
 
 - **Root (`/`)** — primary infrastructure: Cloudflare DNS for `bendrucker.me`, S3 archive buckets (documents, photos) via the `archive` module, IAM Identity Center, GitHub Actions OIDC. It is also the control plane for app repos that manage their own infrastructure: it creates their Terraform Cloud workspaces, mints their Cloudflare tokens, and writes their GitHub Actions secrets, so this workspace can write into other repositories. It also manages AWS Organizations member accounts (`agents.tf`, `performance.tf`) and the per-account OIDC roles app workspaces run as. Lambda source lives under `functions/`, zipped at plan time by the `archive` provider. Providers: AWS (`us-east-1`), Cloudflare, `tfe`, `github`, `archive`. Authenticates to AWS via OIDC, with no static key.
-- **`/bootstrap`** — what must exist before Terraform Cloud can run: the AWS OIDC provider and execution role the root module assumes, the workspace itself (`tfe_workspace`), and the `TFC_AWS_*` variables. Runs locally under `aws sso login` with state committed to git, so it holds no secrets. Providers: `tfe`, AWS.
+- **`/bootstrap`** — what must exist before Terraform Cloud can run: the AWS OIDC provider and execution role the root module assumes, the workspace itself (`tfe_workspace`), the `TFC_AWS_*` variables, and the Tailscale federated identity runs authenticate with. Runs locally under `aws sso login` with state committed to git, so it holds no secrets. Providers: `tfe`, AWS, `tailscale`.
 
 Dependabot manages weekly provider version bumps for both roots and GitHub Actions.
 
