@@ -148,6 +148,41 @@ data "aws_iam_policy_document" "performance_guardrails" {
     }
   }
 
+  # Instances here are disposable, and the reaper terminates or stops them on a
+  # schedule. Termination protection fails its TerminateInstances call, and stop
+  # protection its StopInstances. Setting either attribute to false stays
+  # allowed, so protection can still be cleared. The Service Authorization
+  # Reference types these keys as strings.
+  statement {
+    sid       = "DenyTerminationProtection"
+    effect    = "Deny"
+    actions   = ["ec2:ModifyInstanceAttribute"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEqualsIgnoreCase"
+      variable = "ec2:Attribute/DisableApiTermination"
+      values   = ["true"]
+    }
+  }
+
+  statement {
+    sid       = "DenyStopProtection"
+    effect    = "Deny"
+    actions   = ["ec2:ModifyInstanceAttribute"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEqualsIgnoreCase"
+      variable = "ec2:Attribute/DisableApiStop"
+      values   = ["true"]
+    }
+  }
+
+  # RunInstances has no condition key for DisableApiTermination or
+  # DisableApiStop, in the request or the launch template, so an instance can
+  # still launch protected. The reaper clears protection before it acts.
+
   # Fleets and Auto Scaling launch through service-linked roles, which SCPs do
   # not bind, so the instance type check above never sees their launches. The
   # purchases commit to a year or more of spend in one call.
