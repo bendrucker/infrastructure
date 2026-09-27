@@ -1,17 +1,51 @@
 # VMs join the tailnet so the laptop reaches them directly rather than only
 # through Session Manager. The vm launcher in dotfiles mints a single-use auth
 # key per VM from the laptop, so no Tailscale credential reaches a VM, which
-# runs arbitrary code. It authenticates with a token AWS signs for its SSO
-# session, so there is no client secret to store or rotate.
+# runs arbitrary code. It assumes vm-launcher and exchanges a token AWS signs
+# for that role, so there is no client secret to store or rotate.
 resource "aws_iam_outbound_web_identity_federation" "performance" {
   provider = aws.performance
 }
 
-data "aws_iam_roles" "performance_administrator" {
+# Trusting the account delegates to IAM, so the administrator SSO session can
+# assume the role without naming its generated role.
+data "aws_iam_policy_document" "vm_launcher_trust" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${aws_organizations_account.performance.id}:root"]
+    }
+  }
+}
+
+resource "aws_iam_role" "vm_launcher" {
   provider = aws.performance
 
-  path_prefix = "/aws-reserved/sso.amazonaws.com/"
-  name_regex  = "^AWSReservedSSO_${aws_ssoadmin_permission_set.administrator.name}_"
+  name               = "vm-launcher"
+  path               = "/managed/"
+  assume_role_policy = data.aws_iam_policy_document.vm_launcher_trust.json
+}
+
+data "aws_iam_policy_document" "vm_launcher" {
+  statement {
+    actions   = ["sts:GetWebIdentityToken"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "sts:IdentityTokenAudience"
+      values   = [tailscale_federated_identity.vm.audience]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "vm_launcher" {
+  provider = aws.performance
+
+  role   = aws_iam_role.vm_launcher.name
+  policy = data.aws_iam_policy_document.vm_launcher.json
 }
 
 resource "tailscale_federated_identity" "vm" {
@@ -19,7 +53,7 @@ resource "tailscale_federated_identity" "vm" {
   scopes      = ["auth_keys"]
   tags        = ["tag:vm"]
   issuer      = aws_iam_outbound_web_identity_federation.performance.issuer_identifier
-  subject     = one(data.aws_iam_roles.performance_administrator.arns)
+  subject     = aws_iam_role.vm_launcher.arn
 
   # The tag has to be defined in tagOwners before a credential can carry it.
   depends_on = [tailscale_acl.this]
