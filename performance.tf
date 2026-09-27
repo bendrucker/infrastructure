@@ -528,3 +528,64 @@ resource "aws_scheduler_schedule" "performance_reaper" {
     }
   }
 }
+
+# A reaper that fails or stops running lets instances run unbounded, so both
+# page by email. The subscription waits on a confirmation click before any
+# alarm reaches the inbox.
+resource "aws_sns_topic" "performance_reaper_alarms" {
+  provider = aws.performance
+
+  name = "performance-reaper-alarms"
+}
+
+resource "aws_sns_topic_subscription" "performance_reaper_alarms" {
+  provider = aws.performance
+
+  topic_arn = aws_sns_topic.performance_reaper_alarms.arn
+  protocol  = "email"
+  endpoint  = "bvdrucker@gmail.com"
+}
+
+# The reaper raises when any termination or stop fails, so one stuck instance
+# counts as an error.
+resource "aws_cloudwatch_metric_alarm" "performance_reaper_errors" {
+  provider = aws.performance
+
+  alarm_name        = "performance-reaper-errors"
+  alarm_description = "The performance reaper failed. Instances it should have stopped or terminated may remain."
+
+  namespace           = "AWS/Lambda"
+  metric_name         = "Errors"
+  dimensions          = { FunctionName = aws_lambda_function.performance_reaper.function_name }
+  statistic           = "Sum"
+  period              = 900
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.performance_reaper_alarms.arn]
+  ok_actions    = [aws_sns_topic.performance_reaper_alarms.arn]
+}
+
+# Four scheduled runs fit in an hour. Missing data breaches, so a deleted or
+# disabled schedule alarms too.
+resource "aws_cloudwatch_metric_alarm" "performance_reaper_invocations" {
+  provider = aws.performance
+
+  alarm_name        = "performance-reaper-not-running"
+  alarm_description = "The performance reaper has not run in the last hour."
+
+  namespace           = "AWS/Lambda"
+  metric_name         = "Invocations"
+  dimensions          = { FunctionName = aws_lambda_function.performance_reaper.function_name }
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 1
+  comparison_operator = "LessThanThreshold"
+  threshold           = 1
+  treat_missing_data  = "breaching"
+
+  alarm_actions = [aws_sns_topic.performance_reaper_alarms.arn]
+  ok_actions    = [aws_sns_topic.performance_reaper_alarms.arn]
+}
