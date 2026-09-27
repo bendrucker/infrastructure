@@ -41,7 +41,7 @@ def started_at(instance: dict) -> datetime:
     """
     started = instance["LaunchTime"]
     for mapping in instance.get("BlockDeviceMappings", []):
-        if mapping["DeviceName"] == instance.get("RootDeviceName"):
+        if mapping["DeviceName"] == instance.get("RootDeviceName") and "Ebs" in mapping:
             started = min(started, mapping["Ebs"]["AttachTime"])
     return started
 
