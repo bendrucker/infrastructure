@@ -28,6 +28,8 @@ resource "aws_iam_role" "vm_launcher" {
   assume_role_policy = data.aws_iam_policy_document.vm_launcher_trust.json
 }
 
+# The token describes the caller, so the action has no resource to scope and
+# the conditions limit it to tokens Tailscale accepts for this identity.
 data "aws_iam_policy_document" "vm_launcher" {
   statement {
     actions   = ["sts:GetWebIdentityToken"]
@@ -37,6 +39,12 @@ data "aws_iam_policy_document" "vm_launcher" {
       test     = "StringEquals"
       variable = "sts:IdentityTokenAudience"
       values   = [tailscale_federated_identity.vm.audience]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "sts:SigningAlgorithm"
+      values   = ["RS256"]
     }
   }
 }
