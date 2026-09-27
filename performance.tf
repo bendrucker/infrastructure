@@ -26,11 +26,9 @@ resource "aws_organizations_account" "performance" {
   }
 }
 
-# A forgotten instance is the cost that matters here. The instance TTL in the
-# launch template is the first line of defense, and the reaper below bounds
-# whatever outlives it to the 12-hour ceiling. The budget catches whatever
-# gets past both, hours late, since AWS refreshes budget data a few times a
-# day.
+# This budget is a backstop behind the instance TTL and the reaper: it
+# catches whatever outlives both, hours late, since AWS refreshes budget
+# data only a few times a day.
 resource "aws_budgets_budget" "performance" {
   provider = aws.performance
 
@@ -306,8 +304,6 @@ resource "aws_launch_template" "performance" {
 locals {
   performance_max_runtime_hours = 12
 
-  # How long an instance may outlive its expires-at tag before the job
-  # treats its own timer as failed.
   performance_expiry_grace_minutes = 15
 }
 

@@ -1,9 +1,4 @@
-"""Terminates performance instances that have outlived their runtime limits.
-
-An instance goes when it launched more than MAX_RUNTIME_HOURS ago, or when
-its expires-at tag passed more than EXPIRY_GRACE_MINUTES ago. Stopped
-instances count too, since their volumes still bill.
-"""
+"""Terminates performance instances that have outlived their runtime limits."""
 
 import logging
 import os
@@ -66,8 +61,6 @@ def handler(event, context):
     terminated = []
     failed = []
 
-    # One call per instance, so one that refuses termination does not
-    # shield the rest.
     for instance_id, reason in expired_instances(now):
         logger.info("Terminating %s: %s", instance_id, reason)
         try:
