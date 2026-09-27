@@ -1,4 +1,7 @@
-"""Terminates performance instances that have outlived their runtime limits."""
+"""Terminates performance instances that have outlived their runtime limits.
+
+Stopped instances count too, since their volumes still bill.
+"""
 
 import logging
 import os
@@ -61,6 +64,8 @@ def handler(event, context):
     terminated = []
     failed = []
 
+    # One call per instance, so one that refuses termination does not
+    # shield the rest.
     for instance_id, reason in expired_instances(now):
         logger.info("Terminating %s: %s", instance_id, reason)
         try:
