@@ -403,8 +403,8 @@ data "aws_iam_policy_document" "performance_reaper_scheduler_trust" {
 
     condition {
       test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [aws_organizations_account.performance.id]
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:scheduler:us-east-1:${aws_organizations_account.performance.id}:schedule/default/performance-reaper"]
     }
   }
 }

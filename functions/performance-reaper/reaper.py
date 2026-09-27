@@ -11,8 +11,10 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
-MAX_RUNTIME = timedelta(hours=float(os.environ["MAX_RUNTIME_HOURS"]))
+MAX_RUNTIME_HOURS = float(os.environ["MAX_RUNTIME_HOURS"])
+MAX_RUNTIME = timedelta(hours=MAX_RUNTIME_HOURS)
 EXPIRY_GRACE = timedelta(minutes=float(os.environ["EXPIRY_GRACE_MINUTES"]))
 
 logger = logging.getLogger()
@@ -31,10 +33,23 @@ def parse_expiry(value: str) -> datetime | None:
     return expiry
 
 
+def started_at(instance: dict) -> datetime:
+    """When the instance first launched.
+
+    LaunchTime resets on every start, so a stop and start would restart the
+    clock. The root volume's attachment keeps the original launch time.
+    """
+    started = instance["LaunchTime"]
+    for mapping in instance.get("BlockDeviceMappings", []):
+        if mapping["DeviceName"] == instance.get("RootDeviceName"):
+            started = min(started, mapping["Ebs"]["AttachTime"])
+    return started
+
+
 def termination_reason(instance: dict, now: datetime) -> str | None:
-    launched = instance["LaunchTime"]
-    if now - launched > MAX_RUNTIME:
-        return f"launched {launched.isoformat()}, over the {MAX_RUNTIME} limit"
+    started = started_at(instance)
+    if now - started > MAX_RUNTIME:
+        return f"started {started.isoformat()}, over the {MAX_RUNTIME_HOURS:g}h limit"
 
     tags = {tag["Key"]: tag["Value"] for tag in instance.get("Tags", [])}
     if "expires-at" not in tags:
@@ -83,7 +98,7 @@ def handler(event: dict, context: object) -> dict[str, list[str]]:
         try:
             ec2.terminate_instances(InstanceIds=[instance_id])
             terminated.append(instance_id)
-        except ec2.exceptions.ClientError:
+        except (BotoCoreError, ClientError):
             logger.exception("Failed to terminate %s", instance_id)
             failed.append(instance_id)
 
