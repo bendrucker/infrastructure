@@ -63,17 +63,21 @@
 		},
 	],
 
-	// perf-vm.tf's OAuth client mints auth keys with this tag, and a tag must
-	// have an owner before any credential can apply it.
+	// A tag must have an owner before any credential can apply it. The
+	// workspace's federated identity carries tag:terraform, so a tag it owns
+	// can go on OAuth clients the workspace creates without a bootstrap change.
 	"tagOwners": {
-		"tag:perf-vm": ["autogroup:admin"],
+		"tag:terraform": ["autogroup:admin"],
+		// vm.tf's OAuth client mints auth keys with this tag.
+		"tag:vm": ["autogroup:admin", "tag:terraform"],
 	},
 
 	"grants": [
 		// Allow all connections from people. Tagged nodes are left out because
-		// grants only allow, so "*" would let tag:perf-vm reach the whole
-		// tailnet, and perf VMs run arbitrary code. No other tag exists yet. A
-		// new one that needs this access gets listed here by name.
+		// grants only allow, so "*" would let tag:vm reach the whole tailnet,
+		// and VMs run arbitrary code. tag:terraform is on a credential and
+		// never on a node. A new tag that needs this access gets listed here
+		// by name.
 		{
 			"src": ["autogroup:member"],
 			"dst": ["*"],
@@ -152,14 +156,14 @@
 			"accept": ["tailgate:443"],
 		},
 		{
-			// The point of putting perf VMs on the tailnet.
+			// The point of putting VMs on the tailnet.
 			"src":    "bvdrucker@gmail.com",
-			"accept": ["tag:perf-vm:22"],
+			"accept": ["tag:vm:22"],
 		},
 		{
-			// A perf VM runs whatever a benchmark brings with it. It must not be
+			// A VM runs whatever its workload brings with it. It must not be
 			// able to reach the identity provider or anything behind it.
-			"src":  "tag:perf-vm",
+			"src":  "tag:vm",
 			"deny": ["tailgate:443", "idp:443"],
 		},
 	],
