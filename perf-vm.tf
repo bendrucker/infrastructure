@@ -1,11 +1,7 @@
 # Perf VMs join the tailnet so the laptop reaches them directly rather than
-# only through Session Manager. On each launch, the perf-vm launcher in
-# dotfiles reads this client's secret and mints one single-use, ephemeral auth
-# key for the VM. The secret itself never reaches a VM, which runs arbitrary
-# benchmark code.
-#
-# The client can only mint keys tagged tag:perf-vm. That tag is the one the
-# tailnet policy keeps from opening connections to any other node.
+# only through Session Manager. The perf-vm launcher in dotfiles reads this
+# client's secret and mints a single-use auth key per VM, so the secret never
+# reaches a VM, which runs arbitrary benchmark code.
 resource "tailscale_oauth_client" "perf_vm" {
   description = "perf-vm launcher"
   scopes      = ["auth_keys"]
