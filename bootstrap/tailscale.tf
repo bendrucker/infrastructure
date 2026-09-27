@@ -1,7 +1,9 @@
-# Scopes match the OAuth client this replaces. Tailscale generates the audience.
+# A credential can only grant the scopes and tags it holds, so this covers
+# every OAuth client the workspace creates. Tailscale generates the audience.
 resource "tailscale_federated_identity" "terraform" {
   description = "HCP Terraform infrastructure workspace"
-  scopes      = ["policy_file", "oauth_keys"]
+  scopes      = ["policy_file", "oauth_keys", "auth_keys"]
+  tags        = ["tag:perf-vm"]
   issuer      = "https://app.terraform.io"
   subject     = "organization:bendrucker:project:*:workspace:${tfe_workspace.this.name}:run_phase:*"
 }
