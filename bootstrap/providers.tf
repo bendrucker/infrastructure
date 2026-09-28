@@ -8,7 +8,9 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Credentials come from TAILSCALE_API_KEY, a short-lived API access token.
+# Credentials come from TAILSCALE_OAUTH_CLIENT_ID and TAILSCALE_IDENTITY_TOKEN,
+# an AWS web identity token exchanged with tailscale_federated_identity.bootstrap.
+# Provider configuration never reaches state.
 provider "tailscale" {
   tailnet = "tailaa2f5e.ts.net"
 }
