@@ -40,6 +40,18 @@ import {
 # session, so Tailscale access flows from `aws sso login`.
 resource "aws_iam_outbound_web_identity_federation" "this" {}
 
+import {
+  to = aws_iam_outbound_web_identity_federation.this
+  id = local.account_id
+}
+
+# Created in the admin console and imported, since the provider authenticates
+# as this identity. Neither value is secret.
+locals {
+  tailscale_bootstrap_client_id = "REPLACE_WITH_CLIENT_ID"
+  tailscale_bootstrap_audience  = "REPLACE_WITH_AUDIENCE"
+}
+
 # The subject is the role behind the AdministratorAccess permission set. Its
 # name ends in a hash that changes if Identity Center reprovisions the role, so
 # the pattern matches any hash. Only Identity Center can create roles under the
@@ -53,11 +65,7 @@ resource "tailscale_federated_identity" "bootstrap" {
   subject     = "arn:aws:iam::${local.account_id}:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_*"
 }
 
-# Neither is secret. The README reads them to mint and exchange a token.
-output "tailscale_client_id" {
-  value = tailscale_federated_identity.bootstrap.id
-}
-
-output "tailscale_audience" {
-  value = tailscale_federated_identity.bootstrap.audience
+import {
+  to = tailscale_federated_identity.bootstrap
+  id = local.tailscale_bootstrap_client_id
 }
