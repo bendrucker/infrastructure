@@ -8,9 +8,18 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Credentials come from TAILSCALE_OAUTH_CLIENT_ID and TAILSCALE_IDENTITY_TOKEN,
-# an AWS web identity token exchanged with tailscale_federated_identity.bootstrap.
-# Provider configuration never reaches state.
+# AWS signs a token for the Identity Center session, which the tailscale
+# provider exchanges with tailscale_federated_identity.bootstrap. Ephemeral
+# values never reach state.
+ephemeral "aws_sts_web_identity_token" "tailscale" {
+  audience          = [local.tailscale_bootstrap_audience]
+  signing_algorithm = "RS256"
+}
+
+# The client ID and audience are literals because a provider can't depend on a
+# resource it manages.
 provider "tailscale" {
-  tailnet = "tailaa2f5e.ts.net"
+  tailnet         = "tailaa2f5e.ts.net"
+  oauth_client_id = local.tailscale_bootstrap_client_id
+  identity_token  = ephemeral.aws_sts_web_identity_token.tailscale.web_identity_token
 }
