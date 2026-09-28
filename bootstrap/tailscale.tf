@@ -1,9 +1,10 @@
-# A credential can only grant the scopes it holds, so these cover every
-# credential the workspace creates. Tags come from tagOwners entries naming
-# tag:terraform in tailscale/policy.hujson. Tailscale generates the audience.
+# federated_keys lets the workspace create federated identities. A credential
+# can only grant the scopes it holds, so the rest cover every credential the
+# workspace creates. Tags come from tagOwners entries naming tag:terraform in
+# tailscale/policy.hujson. Tailscale generates the audience.
 resource "tailscale_federated_identity" "terraform" {
   description = "HCP Terraform infrastructure workspace"
-  scopes      = ["policy_file", "oauth_keys", "auth_keys"]
+  scopes      = ["policy_file", "oauth_keys", "auth_keys", "federated_keys"]
   tags        = ["tag:terraform"]
   issuer      = "https://app.terraform.io"
   subject     = "organization:bendrucker:project:*:workspace:${tfe_workspace.this.name}:run_phase:*"
