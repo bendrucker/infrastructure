@@ -36,7 +36,7 @@ data "aws_iam_policy_document" "vm_launcher" {
     resources = ["*"]
 
     condition {
-      test     = "StringEquals"
+      test     = "ForAnyValue:StringEquals"
       variable = "sts:IdentityTokenAudience"
       values   = [tailscale_federated_identity.vm.audience]
     }
