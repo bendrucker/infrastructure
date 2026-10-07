@@ -16,7 +16,7 @@ AWS comes from IAM Identity Center, via `aws sso login`. The default profile is 
 
 HCP Terraform comes from a user token in the macOS keychain, written once by `terraform login`, because the `tfe` provider has no OIDC path. That token is the one long-lived credential the Identity Center migration didn't remove. The `tfe` provider reads `TFE_TOKEN` or a credentials file and ignores the CLI's keychain credentials helper, so the token has to be exported from the helper.
 
-Tailscale comes from AWS. The management account has outbound identity federation enabled, so STS signs a short-lived JWT whose subject is the Identity Center role. An ephemeral `aws_sts_web_identity_token` mints it during each run, and the `tailscale` provider exchanges it with `tailscale_federated_identity.bootstrap`. The token never reaches state.
+Tailscale comes from AWS. The root module enables outbound identity federation in the management account and creates `tailscale_federated_identity.bootstrap`, trusting tokens STS signs for the Identity Center `AdministratorAccess` role. Each run reads that identity's client ID and audience from the root workspace's outputs through an ephemeral `tfe_outputs`. An ephemeral `aws_sts_web_identity_token` mints the token the `tailscale` provider exchanges. None of it reaches state.
 
 ## Commands
 
@@ -35,10 +35,4 @@ Commit the updated `terraform.tfstate` after an apply.
 
 ## Tailscale Identity
 
-The `tailscale` provider authenticates as `tailscale_federated_identity.bootstrap`, so a run can't create that identity or repair it. It was created out of band and imported:
-
-1. Enable federation with `aws iam enable-outbound-web-identity-federation`, which prints the issuer URL.
-1. In the admin console's Trust credentials page, create an OpenID Connect credential with a custom issuer set to that URL. Match the subject, scopes, and tags in `tailscale.tf`.
-1. Copy its client ID and audience into the locals in `tailscale.tf`. The `import` blocks adopt both resources on the next apply.
-
-If the subject stops matching, fix the identity in the console and let the next plan reconcile it.
+The root module owns the identity because this root's provider authenticates as it. If the root workspace loses it, recreate it with a root run. The root workspace's own identity lives here, so recovering both at once needs an API access token from the admin console, exported as `TAILSCALE_API_KEY` with the `tailscale` provider's `oauth_client_id` and `identity_token` removed for that run.
