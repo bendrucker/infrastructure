@@ -167,3 +167,61 @@ resource "tfe_variable" "bendrucker_claude_aws_run_role_arn" {
 
   description = "Role in the agents account that runs assume by OIDC. Minted in bendrucker/infrastructure."
 }
+
+# Claude Code cloud sessions sign S3 requests with an AWS SigV4 network
+# secret, which takes only a static key pair, so this is a user, not a role.
+locals {
+  agents_eval_corpus_arn = "arn:aws:s3:::ben-drucker-agents-eval-corpus"
+}
+
+resource "aws_iam_user" "agents_cloud_sessions" {
+  provider = aws.agents
+
+  name = "claude-cloud-sessions"
+  path = "/managed/"
+}
+
+data "aws_iam_policy_document" "agents_cloud_sessions" {
+  statement {
+    sid       = "ListEvalCorpus"
+    actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
+    resources = [local.agents_eval_corpus_arn]
+  }
+
+  statement {
+    sid       = "ReadWriteEvalCorpus"
+    actions   = ["s3:GetObject", "s3:PutObject"]
+    resources = ["${local.agents_eval_corpus_arn}/*"]
+  }
+
+  statement {
+    sid       = "DeleteEvalCorpusTmp"
+    actions   = ["s3:DeleteObject"]
+    resources = ["${local.agents_eval_corpus_arn}/tmp/*"]
+  }
+}
+
+resource "aws_iam_user_policy" "agents_cloud_sessions" {
+  provider = aws.agents
+
+  name   = "eval-corpus"
+  user   = aws_iam_user.agents_cloud_sessions.name
+  policy = data.aws_iam_policy_document.agents_cloud_sessions.json
+}
+
+resource "aws_iam_access_key" "agents_cloud_sessions" {
+  provider = aws.agents
+
+  user = aws_iam_user.agents_cloud_sessions.name
+}
+
+output "agents_cloud_sessions_access_key_id" {
+  description = "Access key id for the Claude Code cloud environment's AWS SigV4 network secret"
+  value       = aws_iam_access_key.agents_cloud_sessions.id
+}
+
+output "agents_cloud_sessions_secret_access_key" {
+  description = "Secret access key for the Claude Code cloud environment's AWS SigV4 network secret"
+  value       = aws_iam_access_key.agents_cloud_sessions.secret
+  sensitive   = true
+}
