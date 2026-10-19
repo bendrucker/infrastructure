@@ -168,13 +168,8 @@ resource "tfe_variable" "bendrucker_claude_aws_run_role_arn" {
   description = "Role in the agents account that runs assume by OIDC. Minted in bendrucker/infrastructure."
 }
 
-# Claude Code cloud sessions reach the eval corpus through an AWS SigV4
-# network secret, which the session's egress proxy signs with. That secret
-# type takes only an access key pair, so this is a static user rather than
-# a role. The key lives in the proxy, never in the session's VM. The user
-# reads and writes objects in the one bucket and cannot delete; bucket
-# versioning in bendrucker/claude covers overwrites. Rotate with
-# `terraform apply -replace=aws_iam_access_key.agents_cloud_sessions`.
+# Claude Code cloud sessions sign S3 requests with an AWS SigV4 network
+# secret, which takes only a static key pair, so this is a user, not a role.
 locals {
   agents_eval_corpus_arn = "arn:aws:s3:::ben-drucker-agents-eval-corpus"
 }
@@ -213,9 +208,6 @@ resource "aws_iam_access_key" "agents_cloud_sessions" {
 
   user = aws_iam_user.agents_cloud_sessions.name
 }
-
-# Pasted into the cloud environment's AWS SigV4 network secret, then read
-# back only to rotate.
 
 output "agents_cloud_sessions_access_key_id" {
   description = "Access key id for the Claude Code cloud environment's AWS SigV4 network secret"
