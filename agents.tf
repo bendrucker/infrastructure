@@ -193,6 +193,12 @@ data "aws_iam_policy_document" "agents_cloud_sessions" {
     actions   = ["s3:GetObject", "s3:PutObject"]
     resources = ["${local.agents_eval_corpus_arn}/*"]
   }
+
+  statement {
+    sid       = "DeleteEvalCorpusTmp"
+    actions   = ["s3:DeleteObject"]
+    resources = ["${local.agents_eval_corpus_arn}/tmp/*"]
+  }
 }
 
 resource "aws_iam_user_policy" "agents_cloud_sessions" {
