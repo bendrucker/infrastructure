@@ -145,9 +145,10 @@ module "bendrucker_claude_workspace" {
 
 # The dynamic-credential pair, mirroring bootstrap/variables.tf. No secret
 # changes hands: each run exchanges its workload identity token for
-# credentials scoped by the role above. There is no GitHub Actions role to
-# go with it, deliberately: a CI credential reachable from fork pull
-# requests is the leak this account exists to rule out.
+# credentials scoped by the role above. bendrucker/claude's one GitHub
+# Actions role, below, is reachable only from main, since a CI credential
+# reachable from fork pull requests is the leak this account exists to rule
+# out.
 resource "tfe_variable" "bendrucker_claude_aws_provider_auth" {
   workspace_id = module.bendrucker_claude_workspace.id
 
@@ -224,4 +225,107 @@ output "agents_cloud_sessions_secret_access_key" {
   description = "Secret access key for the Claude Code cloud environment's AWS SigV4 network secret"
   value       = aws_iam_access_key.agents_cloud_sessions.secret
   sensitive   = true
+}
+
+# Jobs on the bendrucker/actions-sandbox runner take AWS credentials by GitHub
+# OIDC. bendrucker/claude is public, so the trust names a deployment
+# environment rather than the repository: only main can deploy to it, so a
+# workflow from a fork pull request never gets a token this role accepts.
+resource "aws_iam_openid_connect_provider" "agents_github_actions" {
+  provider = aws.agents
+
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+}
+
+resource "github_repository_environment" "claude_actions_sandbox" {
+  repository  = "claude"
+  environment = "actions-sandbox"
+
+  deployment_branch_policy {
+    protected_branches     = false
+    custom_branch_policies = true
+  }
+}
+
+resource "github_repository_environment_deployment_policy" "claude_actions_sandbox_main" {
+  repository     = "claude"
+  environment    = github_repository_environment.claude_actions_sandbox.environment
+  branch_pattern = "main"
+}
+
+data "aws_iam_policy_document" "agents_actions_sandbox_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.agents_github_actions.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:bendrucker/claude:environment:${github_repository_environment.claude_actions_sandbox.environment}"]
+    }
+  }
+}
+
+resource "aws_iam_role" "agents_actions_sandbox" {
+  provider = aws.agents
+
+  name               = "actions-sandbox"
+  path               = "/managed/"
+  assume_role_policy = data.aws_iam_policy_document.agents_actions_sandbox_trust.json
+}
+
+# Read and write on every bucket in the account, so the runner can take
+# varied jobs, and no other service. Every bucket here carries the
+# ben-drucker-agents- prefix, since the workspace role can create no other.
+# Delete is included for jobs that expire their own data, like DuckLake
+# cleanup and compaction.
+data "aws_iam_policy_document" "agents_actions_sandbox" {
+  statement {
+    sid       = "ListBuckets"
+    actions   = ["s3:ListAllMyBuckets"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "AgentBuckets"
+    actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
+    resources = ["arn:aws:s3:::ben-drucker-agents-*"]
+  }
+
+  statement {
+    sid = "AgentObjects"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+    ]
+    resources = ["arn:aws:s3:::ben-drucker-agents-*/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "agents_actions_sandbox" {
+  provider = aws.agents
+
+  name   = "s3"
+  role   = aws_iam_role.agents_actions_sandbox.name
+  policy = data.aws_iam_policy_document.agents_actions_sandbox.json
+}
+
+resource "github_actions_environment_variable" "claude_actions_sandbox_role" {
+  repository    = "claude"
+  environment   = github_repository_environment.claude_actions_sandbox.environment
+  variable_name = "AWS_ROLE_ARN"
+  value         = aws_iam_role.agents_actions_sandbox.arn
 }
