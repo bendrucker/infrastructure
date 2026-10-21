@@ -132,6 +132,10 @@ resource "aws_iam_role_policy" "agents_terraform" {
   policy = data.aws_iam_policy_document.agents_terraform.json
 }
 
+data "github_repository" "claude" {
+  name = "claude"
+}
+
 module "bendrucker_claude_workspace" {
   source = "./modules/app-workspace"
 
@@ -139,7 +143,7 @@ module "bendrucker_claude_workspace" {
   # above follows the rename through the module's name output.
   name                       = "claude"
   organization               = "bendrucker"
-  repository                 = "bendrucker/claude"
+  repository                 = data.github_repository.claude.full_name
   github_app_installation_id = var.github_app_installation_id
 }
 
@@ -229,29 +233,19 @@ output "agents_cloud_sessions_secret_access_key" {
 
 # Jobs on the bendrucker/actions-sandbox runner take AWS credentials by GitHub
 # OIDC. bendrucker/claude is public, so the trust names a deployment
-# environment rather than the repository: only main can deploy to it, so a
-# workflow from a fork pull request never gets a token this role accepts.
+# environment rather than the repository. The claude repo's own terraform root
+# creates that environment and admits only main to it, so a workflow from a
+# fork pull request never gets a token this role accepts. The role stays here
+# because the claude workspace can create no IAM.
+locals {
+  claude_actions_sandbox_environment = "actions-sandbox"
+}
+
 resource "aws_iam_openid_connect_provider" "agents_github_actions" {
   provider = aws.agents
 
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
-}
-
-resource "github_repository_environment" "claude_actions_sandbox" {
-  repository  = "claude"
-  environment = "actions-sandbox"
-
-  deployment_branch_policy {
-    protected_branches     = false
-    custom_branch_policies = true
-  }
-}
-
-resource "github_repository_environment_deployment_policy" "claude_actions_sandbox_main" {
-  repository     = "claude"
-  environment    = github_repository_environment.claude_actions_sandbox.environment
-  branch_pattern = "main"
 }
 
 data "aws_iam_policy_document" "agents_actions_sandbox_trust" {
@@ -272,7 +266,7 @@ data "aws_iam_policy_document" "agents_actions_sandbox_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:bendrucker/claude:environment:${github_repository_environment.claude_actions_sandbox.environment}"]
+      values   = ["repo:${data.github_repository.claude.full_name}:environment:${local.claude_actions_sandbox_environment}"]
     }
   }
 }
@@ -323,9 +317,17 @@ resource "aws_iam_role_policy" "agents_actions_sandbox" {
   policy = data.aws_iam_policy_document.agents_actions_sandbox.json
 }
 
-resource "github_actions_environment_variable" "claude_actions_sandbox_role" {
-  repository    = "claude"
-  environment   = github_repository_environment.claude_actions_sandbox.environment
-  variable_name = "AWS_ROLE_ARN"
-  value         = aws_iam_role.agents_actions_sandbox.arn
+# The claude root writes this into the environment's AWS_ROLE_ARN variable.
+resource "tfe_variable" "bendrucker_claude_actions_sandbox" {
+  workspace_id = module.bendrucker_claude_workspace.id
+
+  category = "terraform"
+  key      = "actions_sandbox"
+  hcl      = true
+  value = jsonencode({
+    environment = local.claude_actions_sandbox_environment
+    role_arn    = aws_iam_role.agents_actions_sandbox.arn
+  })
+
+  description = "The deployment environment the actions-sandbox role trusts, and the role. Minted in bendrucker/infrastructure."
 }
