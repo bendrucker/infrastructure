@@ -172,6 +172,20 @@ data "aws_iam_policy_document" "terraform" {
     resources = [aws_iam_role.terraform.arn]
   }
 
+  # The account-level switch behind the token bootstrap exchanges with Tailscale
+  # (the root module's bootstrap.tf). Disable is withheld so a run can't cut off
+  # bootstrap's Tailscale access.
+  statement {
+    sid = "OutboundWebIdentityFederation"
+
+    actions = [
+      "iam:EnableOutboundWebIdentityFederation",
+      "iam:GetOutboundWebIdentityFederationInfo",
+    ]
+
+    resources = ["*"]
+  }
+
   statement {
     sid       = "GitHubActionsProvider"
     actions   = ["iam:*OpenIDConnectProvider*"]

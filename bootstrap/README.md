@@ -16,7 +16,7 @@ AWS comes from IAM Identity Center, via `aws sso login`. The default profile is 
 
 HCP Terraform comes from a user token in the macOS keychain, written once by `terraform login`, because the `tfe` provider has no OIDC path. That token is the one long-lived credential the Identity Center migration didn't remove. The `tfe` provider reads `TFE_TOKEN` or a credentials file and ignores the CLI's keychain credentials helper, so the token has to be exported from the helper.
 
-Tailscale comes from an API access token generated under Settings → Keys in the admin console, with a one-day expiry, exported as `TAILSCALE_API_KEY`.
+Tailscale comes from AWS. The root module enables outbound identity federation in the management account and creates `tailscale_federated_identity.bootstrap`, trusting tokens STS signs for the Identity Center `AdministratorAccess` role. Each run reads that identity's client ID and audience from the root workspace's outputs through an ephemeral `tfe_outputs`. An ephemeral `aws_sts_web_identity_token` mints the token the `tailscale` provider exchanges. None of it reaches state.
 
 ## Commands
 
@@ -24,7 +24,6 @@ Tailscale comes from an API access token generated under Settings → Keys in th
 aws sso login
 export AWS_PROFILE=Administrator
 export TFE_TOKEN=$(~/.terraform.d/plugins/darwin_arm64/terraform-credentials-keychain get app.terraform.io | jq -r .token)
-export TAILSCALE_API_KEY=...
 terraform -chdir=bootstrap init
 terraform -chdir=bootstrap plan
 terraform -chdir=bootstrap apply
@@ -33,3 +32,7 @@ terraform -chdir=bootstrap apply
 Run the apply in an interactive terminal. It waits for a typed `yes`.
 
 Commit the updated `terraform.tfstate` after an apply.
+
+## Tailscale Identity
+
+The root module owns the identity because this root's provider authenticates as it. If the root workspace loses it, recreate it with a root run. The root workspace's own identity lives here, so recovering both at once needs an API access token from the admin console, exported as `TAILSCALE_API_KEY` with the `tailscale` provider's `oauth_client_id` and `identity_token` removed for that run.
