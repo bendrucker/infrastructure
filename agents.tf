@@ -132,6 +132,10 @@ resource "aws_iam_role_policy" "agents_terraform" {
   policy = data.aws_iam_policy_document.agents_terraform.json
 }
 
+data "github_repository" "claude" {
+  name = "claude"
+}
+
 module "bendrucker_claude_workspace" {
   source = "./modules/app-workspace"
 
@@ -139,15 +143,16 @@ module "bendrucker_claude_workspace" {
   # above follows the rename through the module's name output.
   name                       = "claude"
   organization               = "bendrucker"
-  repository                 = "bendrucker/claude"
+  repository                 = data.github_repository.claude.full_name
   github_app_installation_id = var.github_app_installation_id
 }
 
 # The dynamic-credential pair, mirroring bootstrap/variables.tf. No secret
 # changes hands: each run exchanges its workload identity token for
-# credentials scoped by the role above. There is no GitHub Actions role to
-# go with it, deliberately: a CI credential reachable from fork pull
-# requests is the leak this account exists to rule out.
+# credentials scoped by the role above. bendrucker/claude's one GitHub
+# Actions role, below, is reachable only from main, since a CI credential
+# reachable from fork pull requests is the leak this account exists to rule
+# out.
 resource "tfe_variable" "bendrucker_claude_aws_provider_auth" {
   workspace_id = module.bendrucker_claude_workspace.id
 
@@ -224,4 +229,105 @@ output "agents_cloud_sessions_secret_access_key" {
   description = "Secret access key for the Claude Code cloud environment's AWS SigV4 network secret"
   value       = aws_iam_access_key.agents_cloud_sessions.secret
   sensitive   = true
+}
+
+# Jobs on the bendrucker/actions-sandbox runner take AWS credentials by GitHub
+# OIDC. bendrucker/claude is public, so the trust names a deployment
+# environment rather than the repository. The claude repo's own terraform root
+# creates that environment and admits only main to it, so a workflow from a
+# fork pull request never gets a token this role accepts. The role stays here
+# because the claude workspace can create no IAM.
+locals {
+  claude_actions_sandbox_environment = "actions-sandbox"
+}
+
+resource "aws_iam_openid_connect_provider" "agents_github_actions" {
+  provider = aws.agents
+
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+}
+
+data "aws_iam_policy_document" "agents_actions_sandbox_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.agents_github_actions.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${data.github_repository.claude.full_name}:environment:${local.claude_actions_sandbox_environment}"]
+    }
+  }
+}
+
+resource "aws_iam_role" "agents_actions_sandbox" {
+  provider = aws.agents
+
+  name               = "actions-sandbox"
+  path               = "/managed/"
+  assume_role_policy = data.aws_iam_policy_document.agents_actions_sandbox_trust.json
+}
+
+# Read and write on every bucket in the account, so the runner can take
+# varied jobs, and no other service. Every bucket here carries the
+# ben-drucker-agents- prefix, since the workspace role can create no other.
+# Delete is included for jobs that expire their own data, like DuckLake
+# cleanup and compaction.
+data "aws_iam_policy_document" "agents_actions_sandbox" {
+  statement {
+    sid       = "ListBuckets"
+    actions   = ["s3:ListAllMyBuckets"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "AgentBuckets"
+    actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
+    resources = ["arn:aws:s3:::ben-drucker-agents-*"]
+  }
+
+  statement {
+    sid = "AgentObjects"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+    ]
+    resources = ["arn:aws:s3:::ben-drucker-agents-*/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "agents_actions_sandbox" {
+  provider = aws.agents
+
+  name   = "s3"
+  role   = aws_iam_role.agents_actions_sandbox.name
+  policy = data.aws_iam_policy_document.agents_actions_sandbox.json
+}
+
+# The claude root writes this into the environment's AWS_ROLE_ARN variable.
+resource "tfe_variable" "bendrucker_claude_actions_sandbox" {
+  workspace_id = module.bendrucker_claude_workspace.id
+
+  category = "terraform"
+  key      = "actions_sandbox"
+  hcl      = true
+  value = jsonencode({
+    environment = local.claude_actions_sandbox_environment
+    role_arn    = aws_iam_role.agents_actions_sandbox.arn
+  })
+
+  description = "The deployment environment the actions-sandbox role trusts, and the role. Minted in bendrucker/infrastructure."
 }
