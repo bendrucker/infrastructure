@@ -1,8 +1,7 @@
 # The Terraform Cloud workspace an app repo's terraform root runs in.
 # Everything scoped to one repo stays in that repo's file at the root of this
 # configuration: the credential the workspace runs as and the variables that
-# carry it, which Cloudflare objects its token may touch, which GitHub secrets
-# it receives.
+# carry it, and which Cloudflare objects its token may touch.
 
 resource "tfe_workspace" "this" {
   name         = var.name
