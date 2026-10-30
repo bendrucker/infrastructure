@@ -231,6 +231,51 @@ output "agents_cloud_sessions_secret_access_key" {
   sensitive   = true
 }
 
+# Cloud sessions read the session lake straight from S3 through the key above,
+# so a runaway query costs GETs and internet egress rather than local CPU. The
+# lake query client refuses a read over its byte budget before it runs; this
+# budget catches whatever gets past that, hours late, since AWS refreshes
+# budget data only a few times a day. A month of normal use costs well under
+# a dollar.
+resource "aws_budgets_budget" "agents_s3" {
+  provider = aws.agents
+
+  name         = "agents-s3-monthly"
+  budget_type  = "COST"
+  limit_amount = "10"
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name   = "Service"
+    values = ["Amazon Simple Storage Service"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 20
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = ["bvdrucker@gmail.com"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = ["bvdrucker@gmail.com"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = ["bvdrucker@gmail.com"]
+  }
+}
+
 # Jobs on the bendrucker/actions-sandbox runner take AWS credentials by GitHub
 # OIDC. bendrucker/claude is public, so the trust names a deployment
 # environment rather than the repository. The claude repo's own terraform root
